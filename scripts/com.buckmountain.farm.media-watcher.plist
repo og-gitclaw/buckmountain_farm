@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.buckmountain.farm.media-watcher</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/iamclaw/Library/Application Support/buckmountain-farm/openclaw_watcher.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>BUCKMOUNTAIN_DASHBOARD_URL</key>
+        <string></string>
+        <key>BUCKMOUNTAIN_DASHBOARD_TOKEN</key>
+        <string></string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/iamclaw/Library/Logs/buckmountain-farm-watcher.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/iamclaw/Library/Logs/buckmountain-farm-watcher.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/iamclaw/Library/Application Support/buckmountain-farm</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
