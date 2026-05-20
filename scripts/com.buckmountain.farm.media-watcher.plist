@@ -23,9 +23,11 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>BUCKMOUNTAIN_DASHBOARD_URL</key>
-        <string></string>
+        <string>https://buckmountain-farm.vercel.app/api/admin/assets</string>
         <key>BUCKMOUNTAIN_DASHBOARD_TOKEN</key>
-        <string></string>
+        <string>2574cf2e3433917aebee5938488d7dfca7b001b4eafd39c141dd637a759a829c</string>
+        <key>BUCKMOUNTAIN_VERCEL_BYPASS</key>
+        <string>X2fz2zpuN9fZ2xyJU6zDRSBQUSCFIyjR</string>
         <key>PATH</key>
         <string>/usr/local/bin:/usr/bin:/bin</string>
     </dict>

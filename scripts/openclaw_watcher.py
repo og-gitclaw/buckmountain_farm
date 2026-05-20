@@ -49,6 +49,7 @@ LOG_PATH = Path.home() / "Library" / "Logs" / "buckmountain-farm-watcher.log"
 POLL_INTERVAL_SECS = 30
 DASHBOARD_URL = os.environ.get("BUCKMOUNTAIN_DASHBOARD_URL", "").strip()  # e.g. https://buckmountain.farm/api/admin/assets
 DASHBOARD_TOKEN = os.environ.get("BUCKMOUNTAIN_DASHBOARD_TOKEN", "").strip()
+DASHBOARD_VERCEL_BYPASS = os.environ.get("BUCKMOUNTAIN_VERCEL_BYPASS", "").strip()
 WATCHER_VERSION = "0.1.0"
 HOSTNAME = socket.gethostname()
 
@@ -206,6 +207,11 @@ def post_to_dashboard(rec: dict) -> tuple[bool, str]:
         req.add_header("User-Agent", f"buckmountain-farm-watcher/{WATCHER_VERSION}")
         if DASHBOARD_TOKEN:
             req.add_header("Authorization", f"Bearer {DASHBOARD_TOKEN}")
+        if DASHBOARD_VERCEL_BYPASS:
+            # Bypass Vercel Deployment Protection so the watcher can POST while
+            # the rest of the site stays auth-walled until prod-promote.
+            req.add_header("x-vercel-protection-bypass", DASHBOARD_VERCEL_BYPASS)
+            req.add_header("x-vercel-set-bypass-cookie", "false")
         with urllib.request.urlopen(req, timeout=15) as resp:
             if 200 <= resp.status < 300:
                 return True, f"http-{resp.status}"
@@ -328,7 +334,9 @@ def retry_pending(seen: dict) -> int:
     changed = False
     for rec in records:
         d = rec.get("dashboard", {})
-        if d.get("status") != "retry":
+        # Replay both "retry" (transient failures) and "pending" (ingested when
+        # URL wasn't yet configured). Skip "posted" (done) and anything else.
+        if d.get("status") not in ("retry", "pending"):
             continue
         if d.get("attempts", 0) >= 50:
             continue  # give up after 50 tries (~25 hours at 30min cycles)
