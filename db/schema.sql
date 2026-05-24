@@ -341,6 +341,66 @@ CREATE TABLE IF NOT EXISTS product_notification_subscribers (
 );
 
 -- ====================================================================
+-- blog_posts — mirrors the legacy /blog (Always Grinding drops, batch
+-- notes). Slugs preserved from legacy URLs for SEO continuity.
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS blog_posts (
+  slug          text PRIMARY KEY,
+  title         text NOT NULL,
+  excerpt       text,
+  body_md       text,                                   -- markdown body
+  hero_asset_id text REFERENCES assets(id),
+  published_at  timestamptz,
+  is_published  boolean NOT NULL DEFAULT false,
+  legacy_url    text,                                   -- original /blog/<slug>
+  seo_title     text,
+  seo_description text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS blog_posts_published_at_idx ON blog_posts (published_at DESC);
+
+-- ====================================================================
+-- strain_updates — the "Strain Updates" feed shown on / and at
+-- /strains/updates. Each row is one news item (batch drop, etc.).
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS strain_updates (
+  id            bigserial PRIMARY KEY,
+  strain_slug   text REFERENCES strains(slug),
+  product_slug  text,                                   -- nullable; some updates are strain-level
+  headline      text NOT NULL,
+  body          text NOT NULL,
+  kind          text NOT NULL CHECK (kind IN (
+                  'new-drop', 'batch-update', 'coming-soon', 'limited'
+                )),
+  hero_asset_id text REFERENCES assets(id),
+  published_at  timestamptz NOT NULL DEFAULT now(),
+  is_published  boolean NOT NULL DEFAULT true
+);
+CREATE INDEX IF NOT EXISTS strain_updates_published_at_idx ON strain_updates (published_at DESC);
+CREATE INDEX IF NOT EXISTS strain_updates_strain_idx       ON strain_updates (strain_slug);
+
+-- ====================================================================
+-- merch_items — apparel + tech decks (Always Grinding line).
+-- Bridge to a proper store backend (Shopify/BigCommerce/Square) is TBD;
+-- this table is enough to drive the brochure /store page.
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS merch_items (
+  id            text PRIMARY KEY,
+  name          text NOT NULL,
+  line          text NOT NULL,                          -- 'Apparel', 'Tech Decks', etc.
+  description   text,
+  price_cents   integer NOT NULL,
+  status        text NOT NULL DEFAULT 'available'
+                  CHECK (status IN ('available', 'low-stock', 'limited', 'sold-out')),
+  hero_asset_id text REFERENCES assets(id),
+  external_url  text,                                   -- Shopify/BigCommerce product URL when wired
+  display_order integer NOT NULL DEFAULT 100,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- ====================================================================
 -- audit_log — admin actions on the dashboard
 -- ====================================================================
 CREATE TABLE IF NOT EXISTS audit_log (
