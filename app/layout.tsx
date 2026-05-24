@@ -14,7 +14,14 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  robots: { index: true, follow: true },
+  // Search-engine lockdown until Randy approves public launch.
+  // See handoff/PROD_PROMOTE.md for the toggle ceremony.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false, noimageindex: true },
+  },
 };
 
 export default function RootLayout({

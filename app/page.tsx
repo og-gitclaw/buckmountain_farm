@@ -1,21 +1,36 @@
 import { ParallaxBackdrops } from "@/components/parallax-backdrops";
+import { VideoParallaxHero } from "@/components/video-parallax-hero";
 
 /**
- * Homepage — replicates the buckmountaincannabis.com vibe but tones it down:
- *   - 5 backdrop images that slow-scroll behind content (skrollr-style)
- *   - Translucent dark overlay so foreground text is legible
- *   - Sections from the existing site, in order: Hero → Hybrid Environments
- *     → Outdoor Hoop Dreams → Cultivation Gallery → FAQ
+ * Homepage — replicates the buckmountaincannabis.com vibe:
+ *   - Hero: looping video with slow-scroll parallax (matches the original)
+ *   - Below: 5 image backdrops that crossfade behind the long-scroll
+ *     sections (Hybrid Environments → Hoop Dreams → Cultivation → FAQ)
  *
  * Per project rule (prefers-reduced-motion + sensory-friendly safeguards),
- * parallax disables itself when the OS reports reduced-motion preference.
+ * parallax disables itself when the OS reports reduced-motion preference,
+ * and the hero video pauses when offscreen.
  *
- * Backdrops are TEMP placeholders until P1.5 ships the ripped-asset import —
- * the ParallaxBackdrops component reads from /public/assets/backdrops/*.
+ * Asset state: video + backdrops are TEMP placeholders until the Chrome
+ * MCP rip lands real captures. See handoff/CHROME_MCP_RIP_PLAYBOOK.md.
  */
 export default function Home() {
   return (
     <main className="relative">
+      <VideoParallaxHero
+        src="/assets/video/hero.mp4"
+        poster="/assets/video/hero-poster.jpg"
+      >
+        <div className="max-w-2xl">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            Buck Mountain Cannabis
+          </h1>
+          <p className="mt-4 text-lg md:text-xl text-white/80">
+            Legacy cannabis brand in the Sierra foothills of Nevada County, CA.
+          </p>
+        </div>
+      </VideoParallaxHero>
+
       <ParallaxBackdrops
         images={[
           { src: "/assets/backdrops/01-hybrid.jpg", caption: "Hybrid Environments" },
@@ -25,17 +40,6 @@ export default function Home() {
           { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
         ]}
       />
-
-      <section className="relative z-10 flex min-h-screen items-end p-8 md:p-16">
-        <div className="max-w-2xl">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-            Buck Mountain Cannabis
-          </h1>
-          <p className="mt-4 text-lg md:text-xl text-white/80">
-            Legacy cannabis brand in the Sierra foothills of Nevada County, CA.
-          </p>
-        </div>
-      </section>
 
       <section className="relative z-10 min-h-screen flex items-center p-8 md:p-16">
         <div className="max-w-2xl">
@@ -86,7 +90,8 @@ export default function Home() {
       <footer className="relative z-10 p-8 md:p-16 text-sm text-white/50">
         © Buck Mountain Cannabis · Nevada County, California ·{" "}
         <a href="/products" className="underline hover:text-white">Products</a> ·{" "}
-        <a href="/blog" className="underline hover:text-white">Blog</a>
+        <a href="/blog" className="underline hover:text-white">Blog</a> ·{" "}
+        <a href="/loyalty" className="underline hover:text-white">Loyalty</a>
       </footer>
     </main>
   );
