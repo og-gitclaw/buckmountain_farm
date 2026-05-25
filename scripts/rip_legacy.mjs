@@ -97,7 +97,7 @@ function basenameFromUrl(u) {
 
 // --- Per-page extraction -----------------------------------------------------
 
-const PAGE_SCRAPE = `() => {
+const PAGE_SCRAPE = `(() => {
   const videos = Array.from(document.querySelectorAll('video, video source'))
     .map(v => v.currentSrc || v.src || v.getAttribute('src'))
     .filter(Boolean);
@@ -145,7 +145,7 @@ const PAGE_SCRAPE = `() => {
     cssRules,
     text,
   };
-}`;
+})()`;
 
 // --- Main --------------------------------------------------------------------
 
