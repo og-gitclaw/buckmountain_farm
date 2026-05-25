@@ -1,8 +1,27 @@
 # Legacy buckmountaincannabis.com — Audit & Gap List
 
 Compiled 2026-05-24 from Brendon's mobile screenshots + open-source
-research (the live site is fully JS-rendered, so `WebFetch` returns
-empty content — Chrome MCP rip is still required for the full inventory).
+research; corrected 2026-05-25 after openclaw rip (commit `a5ee791`).
+
+> **2026-05-25 correction — site stack.** Earlier notes (and several
+> handoff docs) assumed buckmountaincannabis.com was Squarespace. That
+> was wrong: the legacy site has already been migrated to a **Next.js
+> SPA** on the same host. Assets live at `/images/*` and respond HTTP 200
+> to direct `curl` with a real-browser UA. Implications:
+> - `handoff/LEGACY_REDIRECTS.md`'s Squarespace URL-Mappings panel
+>   approach is moot — redirects on the legacy host need to be added to
+>   that Next app's own `next.config` (or set up at the registrar /
+>   Cloudflare level), OR the legacy domain gets pointed at us and we
+>   handle everything via `next.config.ts redirects()` here.
+> - `WebFetch` from sandboxes still returns empty because of the SPA
+>   render path, but `curl -A "<real-UA>"` works for direct asset URLs.
+> - Headless Playwright was 403'd by Cloudflare/bot-protection on the
+>   new stack even with a real UA set, because Cloudflare fingerprints
+>   `navigator.webdriver` and the headless renderer itself. The
+>   `scripts/rip_legacy.mjs` IIFE bug fix shipped in `a5ee791` is the
+>   correct fix for `page.evaluate()`, but the script is still
+>   bot-blocked on this specific origin — use the direct-curl approach
+>   for re-rips. See `handoff/RIP_LEGACY_RUNBOOK.md`.
 
 ## Confirmed facts (from screenshots + public search hits)
 

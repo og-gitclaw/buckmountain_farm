@@ -60,6 +60,47 @@ The script is idempotent — files that already exist in
 publishes new content; it'll add only the new files and overwrite the
 manifest + page JSON with the latest.
 
+## 2026-05-25 — real-world results
+
+First execution by openclaw (commit `a5ee791`):
+
+- **Headless Playwright was 403'd** by the legacy host's Cloudflare /
+  bot-protection layer, even with a real Mac Safari/Chrome UA set on
+  the context. The browser still leaks `navigator.webdriver=true` and
+  HeadlessChrome internals that Cloudflare fingerprints.
+- **Direct `curl -A "<Safari UA>"` works** (HTTP 200 for all 6 assets).
+  This is the fallback to use until/unless we add a stealth plugin or
+  switch to a headful run.
+- **One bug fix shipped in `a5ee791`:** `PAGE_SCRAPE` was a string
+  arrow function passed to `page.evaluate()` — that evaluates as an
+  expression and returns the function literal, never calls it. Wrapped
+  as an IIFE so future runs (once the UA/bot issue is solved) actually
+  execute.
+- **Storage:** Playwright Chromium + ffmpeg cache lives under
+  `/Volumes/OpenClaw-SSD/cache/playwright/` per the openclaw storage
+  policy (heavy-data goes to external SSD). See
+  `coordination/openclaw/STORAGE_LAYOUT.md`.
+- **The legacy site is now Next.js SPA, not Squarespace.** See
+  `handoff/LEGACY_SITE_AUDIT.md` 2026-05-25 correction.
+
+### Direct-curl fallback (the workaround that worked)
+
+```bash
+UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+mkdir -p public/assets/video public/assets/backdrops
+curl -A "$UA" -fSLo public/assets/video/hero.mp4         https://buckmountaincannabis.com/images/hero.mp4
+curl -A "$UA" -fSLo public/assets/video/hero-poster.jpg  https://buckmountaincannabis.com/images/hero-poster.jpg
+curl -A "$UA" -fSLo public/assets/backdrops/01-hybrid.jpg       https://buckmountaincannabis.com/images/hybrid.jpg
+curl -A "$UA" -fSLo public/assets/backdrops/02-hoop.jpg         https://buckmountaincannabis.com/images/hoop.jpg
+curl -A "$UA" -fSLo public/assets/backdrops/03-cultivation.jpg  https://buckmountaincannabis.com/images/cultivation.jpg
+curl -A "$UA" -fSLo public/assets/backdrops/04-jars.jpg         https://buckmountaincannabis.com/images/trimming.jpg
+curl -A "$UA" -fSLo public/assets/backdrops/05-skate.jpg        https://buckmountaincannabis.com/images/skate-grind.png
+```
+
+(Replace asset paths with whatever the legacy site is currently
+serving — these were correct on 2026-05-25 but the new Next.js stack
+could shuffle them.)
+
 ## Limitations
 
 - Squarespace sometimes serves the hero video via Cloudflare Stream as

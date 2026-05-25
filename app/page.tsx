@@ -46,7 +46,7 @@ export default function Home() {
           { src: "/assets/backdrops/01-hybrid.jpg", caption: "Hybrid Environments" },
           { src: "/assets/backdrops/02-hoop.jpg", caption: "Outdoor Hoop Dreams" },
           { src: "/assets/backdrops/03-cultivation.jpg", caption: "Cultivation" },
-          { src: "/assets/backdrops/04-jars.jpg", caption: "Glass" },
+          { src: "/assets/backdrops/04-jars.jpg", caption: "Hand-Trim" },
           { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
         ]}
       />
