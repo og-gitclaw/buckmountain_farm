@@ -26,10 +26,18 @@ export function ParallaxBackdrops({
   images,
   parallaxFactor = 0.15,
   overlayOpacity = 0.55,
+  startOffset = 0,
 }: {
   images: Backdrop[];
   parallaxFactor?: number;
   overlayOpacity?: number;
+  /**
+   * Viewport-heights of scroll before the FIRST backdrop activates.
+   * Use this when there is content above the parallax (e.g. a hero
+   * video) that would otherwise be visually crashed into by backdrop[0]
+   * at scrollY = 0. Default 0 = backdrops start at top of page.
+   */
+  startOffset?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollY, setScrollY] = useState(0);
@@ -62,21 +70,36 @@ export function ParallaxBackdrops({
   }, [reducedMotion]);
 
   // Each backdrop occupies one "viewport-height worth of scroll" cross-fade.
-  // The active backdrop is determined by scrollY / window.innerHeight.
+  // The active backdrop is determined by adjustedScrollY / window.innerHeight,
+  // where adjustedScrollY accounts for any startOffset (content above the
+  // parallax that should not crash into backdrop[0]).
   const vh = typeof window === "undefined" ? 0 : window.innerHeight;
-  const progress = vh > 0 ? scrollY / vh : 0;
+  const adjustedScrollY = Math.max(0, scrollY - startOffset * vh);
+  const progress = vh > 0 ? adjustedScrollY / vh : 0;
+
+  // Fade the whole layer in over the half-viewport before backdrop[0]
+  // activates. Prevents the "static image showing behind the hero video" bug.
+  const containerOpacity =
+    vh > 0
+      ? Math.min(
+          1,
+          Math.max(0, (scrollY - (startOffset - 0.5) * vh) / (vh * 0.5)),
+        )
+      : startOffset === 0
+        ? 1
+        : 0;
 
   return (
     <div
       ref={containerRef}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{ contain: "strict" }}
+      className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
+      style={{ contain: "strict", opacity: containerOpacity }}
     >
       {images.map((img, i) => {
         const distance = Math.abs(progress - i);
         const opacity = Math.max(0, 1 - distance);
-        const translateY = reducedMotion ? 0 : (scrollY - i * vh) * parallaxFactor * -1;
+        const translateY = reducedMotion ? 0 : (adjustedScrollY - i * vh) * parallaxFactor * -1;
         return (
           <div
             key={img.src}
