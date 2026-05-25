@@ -32,8 +32,16 @@
  */
 
 import { NextResponse } from "next/server";
+import { createHmac, randomBytes } from "node:crypto";
 
 export const runtime = "nodejs";
+
+/** Returns `<nonce>.<hmac>` so the callback can verify both. */
+function signedState(secret: string): string {
+  const nonce = randomBytes(16).toString("hex");
+  const sig = createHmac("sha256", secret).update(nonce).digest("hex").slice(0, 32);
+  return `${nonce}.${sig}`;
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -56,8 +64,11 @@ export async function GET(req: Request) {
     );
   }
 
-  // CSRF state — TODO(P3): sign + verify on callback.
-  const state = crypto.randomUUID();
+  // Signed CSRF state. Without SESSION_SECRET we fall back to a random
+  // nonce (still better than nothing). The callback uses the same secret
+  // to verify before honoring `state`.
+  const sessionSecret = process.env.SESSION_SECRET ?? "";
+  const state = sessionSecret ? signedState(sessionSecret) : `${randomBytes(16).toString("hex")}.unsigned`;
 
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   authUrl.searchParams.set("client_id", clientId);

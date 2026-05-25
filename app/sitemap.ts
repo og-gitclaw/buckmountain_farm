@@ -31,6 +31,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/store`,            lastModified: now, changeFrequency: "weekly",  priority: 0.6 },
     { url: `${BASE}/blog`,             lastModified: now, changeFrequency: "weekly",  priority: 0.6 },
     { url: `${BASE}/loyalty`,          lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE}/about`,            lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
+    { url: `${BASE}/contact`,          lastModified: now, changeFrequency: "yearly",  priority: 0.4 },
+    { url: `${BASE}/wholesale`,        lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/coa`,              lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE}/privacy`,          lastModified: now, changeFrequency: "yearly",  priority: 0.2 },
+    { url: `${BASE}/terms`,            lastModified: now, changeFrequency: "yearly",  priority: 0.2 },
     ...strain_urls,
   ];
 }

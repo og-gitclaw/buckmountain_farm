@@ -8,6 +8,7 @@
  */
 
 import Link from "next/link";
+import { PushSubscribeButton } from "@/components/push-subscribe-button";
 
 export const metadata = {
   title: "Loyalty — Buck Mountain Cannabis",
@@ -44,6 +45,9 @@ export default function LoyaltyLanding() {
             jar of whatever just dropped). Every scan = one entry. Repeat
             buyers stack up fast.
           </p>
+          <div className="mt-4">
+            <PushSubscribeButton />
+          </div>
         </div>
         <div className="reveal-on-scroll rounded-xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="text-xl font-bold">Already signed up?</h2>

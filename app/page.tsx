@@ -104,6 +104,12 @@ export default function Home() {
           <a href="/store" className="underline hover:text-white">Store</a>
           <a href="/blog" className="underline hover:text-white">Blog</a>
           <a href="/loyalty" className="underline hover:text-white">Loyalty</a>
+          <a href="/wholesale" className="underline hover:text-white">Wholesale</a>
+          <a href="/coa" className="underline hover:text-white">COA</a>
+          <a href="/about" className="underline hover:text-white">About</a>
+          <a href="/contact" className="underline hover:text-white">Contact</a>
+          <a href="/privacy" className="underline hover:text-white">Privacy</a>
+          <a href="/terms" className="underline hover:text-white">Terms</a>
           <a
             href="https://www.instagram.com/buckmountaincannabis/"
             target="_blank"

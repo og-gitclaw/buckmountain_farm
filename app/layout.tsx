@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SiteNav } from "@/components/site-nav";
+import { AgeGate } from "@/components/age-gate";
 
 export const metadata: Metadata = {
   title: "Buck Mountain Cannabis — Sierra Foothills",
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body>
         <SiteNav />
         {children}
+        <AgeGate />
       </body>
     </html>
   );

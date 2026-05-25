@@ -17,8 +17,25 @@
  */
 
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
+
+function verifyState(state: string | null, secret: string): boolean {
+  if (!state) return false;
+  const [nonce, sig] = state.split(".");
+  if (!nonce || !sig) return false;
+  if (sig === "unsigned") return true;       // SESSION_SECRET wasn't set when issued.
+  const expected = createHmac("sha256", secret).update(nonce).digest("hex").slice(0, 32);
+  try {
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(sig, "hex");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -42,7 +59,8 @@ export async function GET(req: Request) {
     );
   }
 
-  // CSRF check (lax — P3 hardens this).
+  // CSRF check: cookie must match the `state` param AND verify against
+  // the HMAC signing secret (so we know we issued it, not a replay).
   const cookieHeader = req.headers.get("cookie") ?? "";
   const stateCookie = cookieHeader
     .split(";")
@@ -51,6 +69,10 @@ export async function GET(req: Request) {
     ?.split("=")[1];
   if (!stateCookie || stateCookie !== stateParam) {
     return NextResponse.json({ error: "state-mismatch" }, { status: 400 });
+  }
+  const sessionSecret = process.env.SESSION_SECRET ?? "";
+  if (sessionSecret && !verifyState(stateParam, sessionSecret)) {
+    return NextResponse.json({ error: "state-bad-signature" }, { status: 400 });
   }
 
   // Exchange code → tokens
