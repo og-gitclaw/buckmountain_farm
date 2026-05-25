@@ -24,6 +24,7 @@
 
 import { NextResponse } from "next/server";
 import { alpineiq } from "@/lib/alpineiq";
+import { broadcast as pushBroadcast } from "@/lib/push";
 
 export const runtime = "nodejs";
 
@@ -71,8 +72,12 @@ export async function POST(req: Request) {
     });
   }
 
-  // TODO(P3): iterate push_subscriptions, sign + POST via web-push library.
-  const pushResult = { queued: 0, note: "push not yet wired (P3)" };
+  const pushResult = await pushBroadcast({
+    title: body.headline,
+    body: body.body,
+    url: body.cta_url,
+    tag: `new-product:${body.product_slug}`,
+  });
 
   return NextResponse.json(
     {
