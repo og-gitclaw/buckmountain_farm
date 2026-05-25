@@ -37,7 +37,7 @@ export default function Home() {
     <main className="relative">
       <VideoParallaxHero
         src="/assets/video/hero-a-establish.mp4"
-        poster="/assets/video/hero-poster.jpg"
+        poster="/assets/video/hero-a-establish-poster.jpg"
       >
         <div className="max-w-2xl">
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
@@ -53,7 +53,7 @@ export default function Home() {
 
       <VideoScene
         src="/assets/video/hero-b-interior.mp4"
-        poster="/assets/video/hero-poster.jpg"
+        poster="/assets/video/hero-b-interior-poster.jpg"
         align="left"
       >
         <p className="uppercase tracking-[0.25em] text-xs text-white/60">
@@ -71,7 +71,7 @@ export default function Home() {
 
       <VideoScene
         src="/assets/video/hero-c-flower.mp4"
-        poster="/assets/video/hero-poster.jpg"
+        poster="/assets/video/hero-c-flower-poster.jpg"
         align="center"
         overlayOpacity={0.4}
       >
@@ -85,7 +85,7 @@ export default function Home() {
 
       <VideoScene
         src="/assets/video/hero-d-foothills.mp4"
-        poster="/assets/video/hero-poster.jpg"
+        poster="/assets/video/hero-d-foothills-poster.jpg"
         align="left"
         overlayOpacity={0.5}
       >
