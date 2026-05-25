@@ -18,7 +18,15 @@ export async function GET() {
     service: "buckmountain.farm",
     timestamp: new Date().toISOString(),
     integrations: {
-      database: !!process.env.DATABASE_URL,
+      // Vercel-Neon integration with a custom prefix (here: "DATABASE") writes
+      // DATABASE_POSTGRES_URL (pooled) + DATABASE_URL_UNPOOLED (direct) and
+      // omits the bare DATABASE_URL var. Accept any of them so the health
+      // check works regardless of how Storage was provisioned.
+      database:
+        !!process.env.DATABASE_URL ||
+        !!process.env.DATABASE_POSTGRES_URL ||
+        !!process.env.DATABASE_URL_UNPOOLED ||
+        !!process.env.POSTGRES_URL,
       nabis: !!process.env.NABIS_API_KEY,
       alpineiq: !!process.env.ALPINEIQ_API_KEY && !!process.env.ALPINEIQ_UID,
       google_oauth: !!process.env.GOOGLE_OAUTH_CLIENT_ID,

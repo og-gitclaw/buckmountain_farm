@@ -38,7 +38,10 @@ CREATE TABLE IF NOT EXISTS assets (
   review_status   text NOT NULL DEFAULT 'pending'      -- pending | approved | rejected
                     CHECK (review_status IN ('pending', 'approved', 'rejected')),
   linked_strain   text,                                -- FK-ish to products.strain_slug
-  linked_product  bigint REFERENCES products(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+  -- linked_product FK added via ALTER TABLE at end of file. CREATE TABLE
+  -- REFERENCES requires the target table to exist already; DEFERRABLE only
+  -- affects row checks, not CREATE-time existence.
+  linked_product  bigint,
   ingested_at     timestamptz NOT NULL DEFAULT now(),
   reviewed_at     timestamptz,
   reviewed_by     text
@@ -412,3 +415,19 @@ CREATE TABLE IF NOT EXISTS audit_log (
   payload     jsonb,
   occurred_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ====================================================================
+-- Deferred foreign keys — added here so the referenced tables exist
+-- regardless of declaration order above.
+-- ====================================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'assets_linked_product_fk'
+  ) THEN
+    ALTER TABLE assets
+      ADD CONSTRAINT assets_linked_product_fk
+      FOREIGN KEY (linked_product) REFERENCES products(id)
+      ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+END $$;
