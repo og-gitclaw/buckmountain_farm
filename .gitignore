@@ -7,4 +7,5 @@ node_modules/
 .DS_Store
 *.log
 public/assets/ripped/raw/
+public/assets/ripped/screenshots/
 tsconfig.tsbuildinfo
