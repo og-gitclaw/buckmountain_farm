@@ -18,6 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -115,8 +116,23 @@ export async function GET(req: Request) {
     picture?: string;
   };
 
-  // TODO(P3): upsert into oglife_optins (sub → oglife_user_id, email hashed)
-  // For now we trust the consent page to write consents on submit.
+  // Upsert the opt-in row keyed by Google sub. Email is kept fresh; consents
+  // stay empty here (the user fills them via /auth/consent right after). If
+  // the DB isn't configured we still issue the session cookie so the rest
+  // of the flow works in preview deploys.
+  if (dbConfigured()) {
+    const sql = getSql();
+    try {
+      await sql`
+        INSERT INTO oglife_optins (oglife_user_id, email)
+        VALUES (${user.sub}, ${user.email})
+        ON CONFLICT (oglife_user_id) DO UPDATE SET email = EXCLUDED.email
+      `;
+    } catch {
+      // Don't block sign-in on DB hiccups — the upsert retries naturally
+      // when the user submits /auth/consent or scans their next jar.
+    }
+  }
 
   const returnTo =
     cookieHeader

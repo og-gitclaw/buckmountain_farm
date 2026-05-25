@@ -1,7 +1,8 @@
 import { ParallaxBackdrops } from "@/components/parallax-backdrops";
 import { VideoParallaxHero } from "@/components/video-parallax-hero";
 import { VideoScene } from "@/components/video-scene";
-import { StrainUpdates, PLACEHOLDER_UPDATES } from "@/components/strain-updates";
+import { StrainUpdates } from "@/components/strain-updates";
+import { loadStrainUpdates } from "@/lib/strain-updates";
 
 /**
  * Homepage — visual flow:
@@ -32,7 +33,12 @@ import { StrainUpdates, PLACEHOLDER_UPDATES } from "@/components/strain-updates"
  *   - View Transitions on internal nav clicks
  *   - prefers-reduced-motion safe everywhere
  */
-export default function Home() {
+// Refresh the strain-updates feed every 60s. Keeps the homepage fresh
+// without crushing the DB; build-time prerender works too (placeholder set).
+export const revalidate = 60;
+
+export default async function Home() {
+  const updates = await loadStrainUpdates(6);
   return (
     <main className="relative">
       <VideoParallaxHero
@@ -49,7 +55,7 @@ export default function Home() {
         </div>
       </VideoParallaxHero>
 
-      <StrainUpdates updates={PLACEHOLDER_UPDATES} />
+      <StrainUpdates updates={updates} />
 
       <VideoScene
         src="/assets/video/hero-b-interior.mp4"

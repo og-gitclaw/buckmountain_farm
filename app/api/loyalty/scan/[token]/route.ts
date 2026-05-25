@@ -4,33 +4,40 @@
  * Records a QR-sticker scan. Authenticity-first.
  *
  * Workflow context (from Brendon 2026-05-24):
- *   - QR stickers are printed in sheets of 50-75+ by the Photoshop team
- *   - Each sticker's token is PRE-REGISTERED in qr_tokens before printing
- *   - For v1 the sticker is an AUTHENTICITY stamp — does not have to
- *     be tied to a specific jar/batch (batch_id may be NULL)
- *   - For v2 we add jar-level tracking by linking print batches to product
+ *   - QR stickers printed in sheets of 50-75+ by the Photoshop team
+ *   - Each token PRE-REGISTERED in qr_tokens before printing (no collisions)
+ *   - v1 = AUTHENTICITY only. batch_id may be NULL.
  *
- * Endpoint behavior:
+ * Behavior:
  *   1. Look up token in qr_tokens.
- *      - Not found → return 404 "not-a-valid-sticker" (counterfeit signal).
- *      - Retired → return 410 "token-retired".
- *      - Active → proceed.
- *   2. Insert qr_scans row (ip_hash, user_agent, geo via Vercel headers).
- *   3. Return { ok, product_slug?, coa_url?, scan_id, first_scan: bool }.
+ *      - Not found → 404 (counterfeit signal).
+ *      - Retired   → 410.
+ *      - Active    → proceed.
+ *   2. Insert qr_scans row (ip_hash, user_agent, geo from Vercel headers).
+ *   3. Return { ok, product_slug?, coa_url?, scan_id, first_scan }.
  *
- * The scan record is what fuels loyalty points later (after the user
- * opts in via Google SSO + /loyalty/claim/[token]).
+ * Fail-open: if the DB isn't configured (preview deploys), return a stub
+ * 202 response so the user-facing scan page still works.
  */
 
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 function ipHash(ip: string): string {
-  // Daily-salted sha256 (P3 — actually compute it). For now placeholder.
   const day = new Date().toISOString().slice(0, 10);
-  return `placeholder-${day}-${ip.slice(0, 6)}`;
+  // Daily-rotating salt. No raw IPs stored.
+  return createHash("sha256").update(`${day}:${ip}`).digest("hex").slice(0, 32);
 }
+
+type TokenLookup = {
+  is_active: boolean;
+  retired_at: string | null;
+  product_slug: string | null;
+  coa_url: string | null;
+};
 
 export async function POST(
   req: Request,
@@ -49,36 +56,74 @@ export async function POST(
   const ua = hdrs.get("user-agent") ?? "";
   const geoCity = hdrs.get("x-vercel-ip-city") ?? null;
   const geoCountry = hdrs.get("x-vercel-ip-country") ?? null;
+  const ip_hash = ipHash(ip);
 
-  // TODO(P3): real lookup against qr_tokens / insert qr_scans.
-  // SELECT batch_id, is_active, retired_at FROM qr_tokens WHERE token = $1
-  // If is_active=false → 410.
-  // INSERT INTO qr_scans (token, ip_hash, user_agent, geo_city, geo_country)
-  //   VALUES (...) RETURNING id;
-  // SELECT p.slug, b.coa_url FROM qr_tokens t
-  //   LEFT JOIN batches b ON b.id = t.batch_id
-  //   LEFT JOIN products p ON p.id = b.product_id
-  //   WHERE t.token = $1;
-  const scanRow = {
-    token,
-    ip_hash: ipHash(ip),
-    user_agent: ua,
-    geo_city: geoCity,
-    geo_country: geoCountry,
-    scanned_at: new Date().toISOString(),
-  };
-  console.log("[loyalty:scan]", scanRow);
+  if (!dbConfigured()) {
+    return NextResponse.json(
+      {
+        ok: true,
+        token,
+        scan_id: "stub-no-db",
+        first_scan: true,
+        product_slug: null,
+        coa_url: null,
+      },
+      { status: 202 },
+    );
+  }
+
+  const sql = getSql();
+
+  // Token lookup + join through batches → products in one round trip.
+  const lookup = (await sql`
+    SELECT
+      t.is_active,
+      t.retired_at,
+      p.slug AS product_slug,
+      b.coa_url AS coa_url
+    FROM qr_tokens t
+    LEFT JOIN batches b  ON b.id = t.batch_id
+    LEFT JOIN products p ON p.id = b.product_id
+    WHERE t.token = ${token}
+    LIMIT 1
+  `) as TokenLookup[];
+
+  if (lookup.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: "not-a-valid-sticker" },
+      { status: 404 },
+    );
+  }
+  const row = lookup[0];
+  if (!row.is_active) {
+    return NextResponse.json(
+      { ok: false, error: "token-retired", retired_at: row.retired_at },
+      { status: 410 },
+    );
+  }
+
+  // Append-only scan record.
+  const inserted = (await sql`
+    INSERT INTO qr_scans (token, ip_hash, user_agent, geo_city, geo_country)
+    VALUES (${token}, ${ip_hash}, ${ua}, ${geoCity}, ${geoCountry})
+    RETURNING id
+  `) as { id: number }[];
+
+  // First-scan check: prior count of scans for this token.
+  const prior = (await sql`
+    SELECT COUNT(*)::int AS n FROM qr_scans WHERE token = ${token}
+  `) as { n: number }[];
+  const first_scan = prior[0].n === 1;
 
   return NextResponse.json(
     {
       ok: true,
       token,
-      scan_id: "stub-scan-id",
-      first_scan: true,
-      // Until qr_tokens is seeded, these are null. Frontend handles that.
-      product_slug: null,
-      coa_url: null,
+      scan_id: inserted[0].id,
+      first_scan,
+      product_slug: row.product_slug,
+      coa_url: row.coa_url,
     },
-    { status: 202 },
+    { status: 200 },
   );
 }

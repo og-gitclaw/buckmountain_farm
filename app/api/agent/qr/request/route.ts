@@ -1,21 +1,26 @@
 /**
  * POST /api/agent/qr/request
  *
- * Pre-allocates N tokens for the Photoshop team to render onto a
- * sticker sheet. See handoff/QR_STICKER_WORKFLOW.md.
+ * Pre-allocates N tokens for the Photoshop team to render. See
+ * handoff/QR_STICKER_WORKFLOW.md for the full pipeline.
  *
- * Tokens are 12-char URL-safe random IDs, generated with the Web Crypto
- * API. Centralized generation = zero collision risk (the watcher refuses
- * sheets whose tokens we never allocated).
+ * Tokens are 12-char URL-safe random IDs from Web Crypto. Server-side
+ * generation = zero collision risk.
  *
- * Body (form): count (10-5000), sheet_code?, notes?
+ * Flow:
+ *   1. INSERT a qr_sheets row reserving the sheet_code.
+ *   2. Generate N tokens, INSERT into qr_tokens (token, sheet_id,
+ *      batch_id=NULL, is_active=true).
+ *   3. Return tokens so the Photoshop team can render the sheet.
  */
 
 import { NextResponse } from "next/server";
+import { dbConfigured, getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
+const ALPHABET =
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
 
 function makeToken(): string {
   const bytes = new Uint8Array(12);
@@ -30,7 +35,6 @@ function makeToken(): string {
 function defaultSheetCode(): string {
   const now = new Date();
   const year = now.getUTCFullYear();
-  // Rough ISO-week — good enough for human-readable codes.
   const week = Math.ceil(
     ((now.getTime() - Date.UTC(year, 0, 1)) / 86400000 + 1) / 7,
   );
@@ -52,18 +56,55 @@ export async function POST(req: Request) {
   const tokens: string[] = [];
   for (let i = 0; i < count; i++) tokens.push(makeToken());
 
-  // TODO(P3): persist allocation into qr_sheets (status=pending-render)
-  // + qr_tokens (sheet_id=NULL initially, linked when watcher ingests
-  // the rendered sheet); drop tokens-<sheet_code>.txt onto the
-  // Tailscale-synced folder via SSH or Tailscale Drop.
-  console.log("[qr:allocated]", {
-    sheet_code,
-    count,
-    sample: tokens.slice(0, 3),
-    notes,
-  });
+  if (!dbConfigured()) {
+    if ((req.headers.get("accept") ?? "").includes("application/json")) {
+      return NextResponse.json({
+        ok: true,
+        sheet_code,
+        count,
+        sample: tokens.slice(0, 3),
+        stub: "db-not-configured",
+      });
+    }
+    return NextResponse.redirect(
+      new URL(`/agent/qr/request?allocated=${count}&sheet=${sheet_code}&stub=1`, req.url),
+      303,
+    );
+  }
 
-  // Accept-aware response: form post -> redirect; API client -> JSON.
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Reserve the sheet row (no asset yet — pre-render).
+    const sheetRow = await client.query(
+      `INSERT INTO qr_sheets (sheet_code, printer, notes, token_count)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (sheet_code) DO UPDATE SET notes = COALESCE(EXCLUDED.notes, qr_sheets.notes)
+       RETURNING id`,
+      [sheet_code, "photoshop-team", notes, count],
+    );
+    const sheet_id: number = sheetRow.rows[0].id;
+
+    // Bulk insert. Collisions effectively impossible at 12 chars of URL-safe
+    // base64; ON CONFLICT DO NOTHING is belt-and-suspenders.
+    await client.query(
+      `INSERT INTO qr_tokens (token, sheet_id)
+       SELECT unnest($1::text[]), $2::bigint
+       ON CONFLICT (token) DO NOTHING`,
+      [tokens, sheet_id],
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    const msg = err instanceof Error ? err.message : "alloc-failed";
+    return NextResponse.json({ error: "alloc-failed", detail: msg }, { status: 500 });
+  } finally {
+    client.release();
+  }
+
   if ((req.headers.get("accept") ?? "").includes("application/json")) {
     return NextResponse.json({
       ok: true,

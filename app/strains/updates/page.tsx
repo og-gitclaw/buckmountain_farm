@@ -6,12 +6,17 @@
  * product_notification_subscribers table).
  */
 
-import { StrainUpdates, PLACEHOLDER_UPDATES } from "@/components/strain-updates";
+import { StrainUpdates } from "@/components/strain-updates";
+import { loadStrainUpdates } from "@/lib/strain-updates";
 
-export default function StrainUpdatesFeed() {
+// Live feed — short revalidate so new posts surface fast.
+export const revalidate = 30;
+
+export default async function StrainUpdatesFeed() {
+  const updates = await loadStrainUpdates(40);
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 pt-20">
-      <StrainUpdates updates={PLACEHOLDER_UPDATES} />
+      <StrainUpdates updates={updates} />
       <section className="px-6 md:px-16 max-w-3xl mx-auto pb-24">
         <div className="reveal-on-scroll rounded-xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="text-2xl font-bold">Get pinged when something drops</h2>

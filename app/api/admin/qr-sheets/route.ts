@@ -1,34 +1,23 @@
 /**
  * POST /api/admin/qr-sheets
  *
- * Receives a QR-sticker sheet from the openclaw watcher. The watcher
- * picks up sheet images dropped into the synced folder by the Photoshop
- * dev team, decodes the QR codes in the image (pyzbar / zxing), and
- * POSTs the result here.
+ * Receives a QR-sticker sheet from the openclaw watcher.
  *
- * Body shape (schema: buckmountain-farm/qr-sheet/v1):
- *   {
- *     schema: "buckmountain-farm/qr-sheet/v1",
- *     sheet_code: "BMC-2026-W21-A03",  // printer-side label or filename
- *     asset_id: "abcd1234..." | null,  // openclaw asset.id of the sheet image
- *     printer: "photoshop-team",
- *     generated_at_iso: "2026-05-24T...",
- *     tokens: ["tk_abc...", "tk_def...", ...]
- *   }
- *
- * Auth: Bearer ADMIN_ASSET_INGEST_TOKEN (same token the asset watcher uses
- * — single secret to manage on openclaw).
+ * Body (schema buckmountain-farm/qr-sheet/v1):
+ *   { schema, sheet_code, asset_id?, printer?, generated_at_iso?,
+ *     tokens: string[], notes? }
  *
  * Behavior:
- *   - INSERT qr_sheets row (skip if sheet_code already ingested)
- *   - For each token, INSERT INTO qr_tokens (token, sheet_id) ON CONFLICT
- *     DO NOTHING (so re-ingesting the same sheet is idempotent)
- *   - batch_id stays NULL for v1 — these are authenticity-only stickers
+ *   1. UPSERT qr_sheets row by sheet_code (idempotent re-ingest).
+ *   2. Bulk INSERT qr_tokens (token, sheet_id) ON CONFLICT (token)
+ *      DO NOTHING — keeps batch_id NULL for v1 authenticity-only.
+ *   3. Update qr_sheets.token_count to actual.
  *
- * Returns counts: { sheet_id, tokens_inserted, tokens_skipped }.
+ * Returns counts so the watcher can spot collisions.
  */
 
 import { NextResponse } from "next/server";
+import { dbConfigured, getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -48,7 +37,9 @@ function isValid(x: unknown): x is Body {
   return (
     b.schema === "buckmountain-farm/qr-sheet/v1" &&
     Array.isArray(b.tokens) &&
-    b.tokens.every((t) => typeof t === "string" && t.length >= 6 && t.length <= 32)
+    b.tokens.every(
+      (t) => typeof t === "string" && t.length >= 6 && t.length <= 32,
+    )
   );
 }
 
@@ -74,29 +65,83 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid-record-shape" }, { status: 422 });
   }
 
-  // TODO(P3):
-  //   INSERT INTO qr_sheets (sheet_code, asset_id, printer, token_count, generated_at, notes)
-  //     VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (sheet_code) DO UPDATE ...
-  //   INSERT INTO qr_tokens (token, sheet_id) SELECT unnest($7::text[]), $sheet_id
-  //     ON CONFLICT (token) DO NOTHING;
-  console.log("[qr-sheets:ingest]", {
-    sheet_code: body.sheet_code,
-    asset_id: body.asset_id,
-    printer: body.printer,
-    token_count: body.tokens.length,
-    sample: body.tokens.slice(0, 3),
-  });
+  if (!dbConfigured()) {
+    return NextResponse.json(
+      {
+        ok: true,
+        sheet_code: body.sheet_code ?? null,
+        tokens_received: body.tokens.length,
+        tokens_inserted: 0,
+        tokens_skipped: 0,
+        stub: "db-not-configured",
+      },
+      { status: 202 },
+    );
+  }
 
-  return NextResponse.json(
-    {
-      ok: true,
-      sheet_code: body.sheet_code ?? null,
-      tokens_received: body.tokens.length,
-      tokens_inserted: body.tokens.length, // stub — real count after db wired
-      tokens_skipped: 0,
-    },
-    { status: 202 },
-  );
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Upsert the sheet row.
+    const sheetRow = await client.query(
+      `INSERT INTO qr_sheets (sheet_code, asset_id, printer, generated_at, notes)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (sheet_code) DO UPDATE SET
+         asset_id     = COALESCE(EXCLUDED.asset_id, qr_sheets.asset_id),
+         printer      = COALESCE(EXCLUDED.printer,  qr_sheets.printer),
+         generated_at = COALESCE(EXCLUDED.generated_at, qr_sheets.generated_at),
+         notes        = COALESCE(EXCLUDED.notes,    qr_sheets.notes)
+       RETURNING id`,
+      [
+        body.sheet_code ?? null,
+        body.asset_id ?? null,
+        body.printer ?? "photoshop-team",
+        body.generated_at_iso ?? null,
+        body.notes ?? null,
+      ],
+    );
+    const sheet_id: number = sheetRow.rows[0].id;
+
+    // 2. Bulk insert tokens. ON CONFLICT (token) DO NOTHING means
+    //    re-ingesting a sheet is a no-op for tokens we already have.
+    const insertResult = await client.query(
+      `INSERT INTO qr_tokens (token, sheet_id)
+       SELECT unnest($1::text[]), $2::bigint
+       ON CONFLICT (token) DO NOTHING`,
+      [body.tokens, sheet_id],
+    );
+    const tokens_inserted = insertResult.rowCount ?? 0;
+    const tokens_skipped = body.tokens.length - tokens_inserted;
+
+    // 3. Update token_count to match actual count for this sheet.
+    await client.query(
+      `UPDATE qr_sheets SET token_count = (
+         SELECT COUNT(*) FROM qr_tokens WHERE sheet_id = $1
+       ) WHERE id = $1`,
+      [sheet_id],
+    );
+
+    await client.query("COMMIT");
+    return NextResponse.json(
+      {
+        ok: true,
+        sheet_id,
+        sheet_code: body.sheet_code ?? null,
+        tokens_received: body.tokens.length,
+        tokens_inserted,
+        tokens_skipped,
+      },
+      { status: 202 },
+    );
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    const msg = err instanceof Error ? err.message : "insert-failed";
+    return NextResponse.json({ error: "insert-failed", detail: msg }, { status: 500 });
+  } finally {
+    client.release();
+  }
 }
 
 export async function GET() {

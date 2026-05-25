@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { alpineiq } from "@/lib/alpineiq";
 import { broadcast as pushBroadcast } from "@/lib/push";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -31,8 +32,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "headline-and-body-required" }, { status: 422 });
   }
 
-  // TODO(P3): INSERT INTO strain_updates (...) RETURNING id;
-  console.log("[strain-update:create]", { strain_slug, kind, headline });
+  if (dbConfigured()) {
+    const sql = getSql();
+    try {
+      await sql`
+        INSERT INTO strain_updates (strain_slug, headline, body, kind)
+        VALUES (${strain_slug}, ${headline}, ${body}, ${kind})
+      `;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "insert-failed";
+      return NextResponse.json({ error: "insert-failed", detail }, { status: 500 });
+    }
+  }
 
   let blastResult: unknown = { skipped: true, reason: "not-requested" };
   if (also_blast) {

@@ -1,17 +1,19 @@
 /**
  * POST /api/auth/consent
  *
- * Writes the consent flags submitted from /auth/consent into the
- * session user's oglife_optins.consents jsonb column.
+ * Writes consent flags from /auth/consent into oglife_optins.consents.
  *
- * Hard requirement: age_21_plus must be present. Without it, we
- * cannot serve cannabis content per CA + most state regs.
+ * Hard requirement: age_21_plus must be present. Without it, we cannot
+ * serve cannabis content per CA regs.
  *
- * If marketing_sms is checked, we also queue an Alpine IQ profile
- * sync (placeholder — see /api/sms/subscribe for the real call).
+ * If marketing_sms is checked we also flag a TODO for the Alpine IQ
+ * profile sync (real call lands when /api/sms/subscribe is invoked
+ * with a phone number).
  */
 
 import { NextResponse } from "next/server";
+import { getSession } from "@/lib/session";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -36,13 +38,27 @@ export async function POST(req: Request) {
     consented_at: new Date().toISOString(),
   };
 
-  // TODO(P3):
-  //   - look up session sub
-  //   - UPDATE oglife_optins SET consents = $1 WHERE oglife_user_id = $2
-  //   - if marketing_sms: POST to Alpine IQ /audiences/{ID}/contacts
-  //   - if push_notifications: client-side subscribes via /api/push/subscribe
-  console.log("[consent:save]", consents);
-
+  const session = await getSession();
   const returnTo = (form.get("return_to") as string | null) ?? "/agent";
+
+  if (session && dbConfigured()) {
+    const sql = getSql();
+    try {
+      // Upsert: insert if first-time, otherwise merge new consent keys on top
+      // of any existing ones (||) so we don't drop fields a future version
+      // adds.
+      await sql`
+        INSERT INTO oglife_optins (oglife_user_id, email, consents)
+        VALUES (${session.sub}, ${session.email}, ${JSON.stringify(consents)}::jsonb)
+        ON CONFLICT (oglife_user_id) DO UPDATE SET
+          email    = EXCLUDED.email,
+          consents = oglife_optins.consents || EXCLUDED.consents
+      `;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "consent-write-failed";
+      return NextResponse.json({ error: "consent-write-failed", detail }, { status: 500 });
+    }
+  }
+
   return NextResponse.redirect(new URL(returnTo, req.url), 303);
 }
