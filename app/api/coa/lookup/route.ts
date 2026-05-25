@@ -10,6 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -31,8 +32,20 @@ export async function GET(req: Request) {
     );
   }
 
-  // TODO(P3): real SELECT against batches.
-  const coa_url: string | null = null;
+  let coa_url: string | null = null;
+  if (dbConfigured()) {
+    try {
+      const sql = getSql();
+      const rows = (await sql`
+        SELECT coa_url FROM batches
+         WHERE metrc_package_tag = ${tag} AND coa_url IS NOT NULL
+         LIMIT 1
+      `) as { coa_url: string }[];
+      coa_url = rows[0]?.coa_url ?? null;
+    } catch {
+      coa_url = null;
+    }
+  }
 
   if (!coa_url) {
     return new NextResponse(

@@ -1,20 +1,19 @@
 /**
  * POST /api/sms/subscribe
  *
- * Body: { phone: "+14155551234", consent_text: "...", tags?: string[] }
+ * Single-opt-in form → upserts sms_subscriptions row (status='pending')
+ * + sends Alpine IQ double-opt-in welcome SMS. Alpine IQ's webhook
+ * (handled at /api/alpineiq/webhook) flips status='confirmed' once the
+ * user replies Y, or 'stopped' on STOP.
  *
- * Records double-opt-in: the user submitted the form (single opt-in), we
- * send a welcome SMS via Alpine IQ that requires reply "Y" to confirm.
- * Alpine IQ handles the confirmation + STOP/HELP automation server-side
- * so we don't have to.
- *
- * TCPA-safe: we never write marketing_sms=true without an explicit click
- * from /auth/consent OR an explicit POST to this endpoint with the
- * exact consent_text we showed at the form.
+ * TCPA-safe: the exact consent_text shown to the user is stored on the
+ * row so we can produce evidence of opt-in if a carrier audits.
  */
 
 import { NextResponse } from "next/server";
 import { alpineiq } from "@/lib/alpineiq";
+import { getSession } from "@/lib/session";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -42,12 +41,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "phone-must-be-e164" }, { status: 422 });
   }
   if (!body.consent_text || body.consent_text.length < 20) {
-    return NextResponse.json(
-      { error: "consent-text-required" },
-      { status: 422 },
-    );
+    return NextResponse.json({ error: "consent-text-required" }, { status: 422 });
   }
 
+  // Mirror Alpine IQ upsert first so we have the contact id to store.
   const upsert = await alpineiq.upsertContact({
     phone: body.phone,
     email: body.email,
@@ -56,6 +53,41 @@ export async function POST(req: Request) {
     tags: [...(body.tags ?? []), "buckmountain", "sms-pending-confirm"],
     consents: { marketing_sms_single_optin: true },
   });
+  const alpineiq_contact_id =
+    upsert.ok && upsert.data && typeof upsert.data === "object" && "id" in upsert.data
+      ? String((upsert.data as { id: string }).id)
+      : null;
+
+  if (dbConfigured()) {
+    const sql = getSql();
+    const session = await getSession();
+    let optin_id: number | null = null;
+    if (session) {
+      const rows = (await sql`
+        INSERT INTO oglife_optins (oglife_user_id, email)
+        VALUES (${session.sub}, ${session.email})
+        ON CONFLICT (oglife_user_id) DO UPDATE SET email = EXCLUDED.email
+        RETURNING id
+      `) as { id: number }[];
+      optin_id = rows[0].id;
+    }
+    try {
+      await sql`
+        INSERT INTO sms_subscriptions
+          (optin_id, phone_e164, alpineiq_contact_id, consent_text, status)
+        VALUES
+          (${optin_id}, ${body.phone}, ${alpineiq_contact_id}, ${body.consent_text}, 'pending')
+        ON CONFLICT (phone_e164) DO UPDATE SET
+          consent_text         = EXCLUDED.consent_text,
+          alpineiq_contact_id  = COALESCE(EXCLUDED.alpineiq_contact_id, sms_subscriptions.alpineiq_contact_id),
+          optin_id             = COALESCE(EXCLUDED.optin_id, sms_subscriptions.optin_id),
+          single_optin_at      = now()
+      `;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "sms-save-failed";
+      return NextResponse.json({ error: "sms-save-failed", detail }, { status: 500 });
+    }
+  }
 
   const welcome = await alpineiq.sendSms({
     to: body.phone,
@@ -65,7 +97,6 @@ export async function POST(req: Request) {
     campaign: "buckmountain-sms-doi",
   });
 
-  // TODO(P3): persist into sms_subscriptions table once Neon is up.
   return NextResponse.json(
     { ok: true, upsert, welcome },
     { status: upsert.ok ? 202 : 200 },

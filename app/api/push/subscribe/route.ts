@@ -1,32 +1,18 @@
 /**
- * POST /api/push/subscribe
+ * GET  /api/push/subscribe  → returns VAPID public key (client uses it
+ *                              to subscribe via PushManager).
+ * POST /api/push/subscribe  → stores a PushSubscription on
+ *                              push_subscriptions (upsert by endpoint
+ *                              hash; SHA-256 of the endpoint URL).
  *
- * Records a Web Push (VAPID) subscription so we can fire browser
- * push notifications when:
- *   - New product drops (matches user's interest tags)
- *   - Monthly prize drawing winners
- *   - QR scan confirmed + points awarded
- *   - Order shipped (transactional → also gets a SES email)
- *
- * Body shape (from PushSubscription.toJSON()):
- *   {
- *     endpoint: "https://fcm.googleapis.com/...",
- *     keys: { p256dh: "...", auth: "..." }
- *   }
- *
- * Returns the public VAPID key on GET so the client can subscribe
- * without the server needing to ship it twice.
- *
- * VAPID keys live in env: PUSH_VAPID_PUBLIC_KEY + PUSH_VAPID_PRIVATE_KEY
- * (generate via `npx web-push generate-vapid-keys`). The private key
- * is what we use server-side to sign push payloads.
- *
- * Web Push gives us in-browser delivery WITHOUT touching Apple/Google
- * developer accounts or Alpine IQ — pure standards. SMS still goes
- * through Alpine IQ; this is the lighter, opt-in browser channel.
+ * The push_subscriptions table is what lib/push.broadcast() iterates
+ * when /api/notifications/new-product fires.
  */
 
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { getSession } from "@/lib/session";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -38,10 +24,7 @@ type Subscription = {
 export async function GET() {
   const publicKey = process.env.PUSH_VAPID_PUBLIC_KEY ?? null;
   if (!publicKey) {
-    return NextResponse.json(
-      { error: "vapid-not-configured" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "vapid-not-configured" }, { status: 503 });
   }
   return NextResponse.json({ vapid_public_key: publicKey });
 }
@@ -61,17 +44,46 @@ export async function POST(req: Request) {
     typeof s.keys?.p256dh !== "string" ||
     typeof s.keys?.auth !== "string"
   ) {
-    return NextResponse.json(
-      { error: "invalid-subscription-shape" },
-      { status: 422 },
-    );
+    return NextResponse.json({ error: "invalid-subscription-shape" }, { status: 422 });
   }
 
-  // TODO(P3): upsert into push_subscriptions by endpoint hash.
-  console.log("[push:subscribe]", {
-    endpoint_host: new URL(s.endpoint).host,
-    p256dh_len: s.keys.p256dh.length,
-  });
+  if (!dbConfigured()) {
+    return NextResponse.json({ ok: true, stub: "db-not-configured" }, { status: 202 });
+  }
+
+  const endpoint_hash = createHash("sha256").update(s.endpoint).digest("hex");
+  const ua = req.headers.get("user-agent") ?? null;
+  const sql = getSql();
+
+  const session = await getSession();
+  let optin_id: number | null = null;
+  if (session) {
+    const rows = (await sql`
+      INSERT INTO oglife_optins (oglife_user_id, email)
+      VALUES (${session.sub}, ${session.email})
+      ON CONFLICT (oglife_user_id) DO UPDATE SET email = EXCLUDED.email
+      RETURNING id
+    `) as { id: number }[];
+    optin_id = rows[0].id;
+  }
+
+  try {
+    await sql`
+      INSERT INTO push_subscriptions
+        (optin_id, endpoint_hash, endpoint, p256dh, auth, user_agent, is_active, last_seen_at)
+      VALUES
+        (${optin_id}, ${endpoint_hash}, ${s.endpoint}, ${s.keys.p256dh}, ${s.keys.auth}, ${ua}, true, now())
+      ON CONFLICT (endpoint_hash) DO UPDATE SET
+        p256dh       = EXCLUDED.p256dh,
+        auth         = EXCLUDED.auth,
+        is_active    = true,
+        last_seen_at = now(),
+        optin_id     = COALESCE(EXCLUDED.optin_id, push_subscriptions.optin_id)
+    `;
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "save-failed";
+    return NextResponse.json({ error: "save-failed", detail }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true }, { status: 202 });
 }

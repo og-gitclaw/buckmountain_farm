@@ -1,19 +1,16 @@
 /**
  * POST /api/notifications/subscribe
  *
- * User-facing subscribe endpoint — "tell me when <strain> drops via <channel>".
+ * User-facing "ping me when X drops" subscribe endpoint.
  *
- * Writes into product_notification_subscribers. For SMS we also bounce
- * through Alpine IQ to capture the TCPA consent.
- *
- * Body (form-encoded or JSON):
- *   strain_slug: "permanent-og"
- *   channel: "push" | "sms" | "email"
- *   product_slug?: string
- *   category?: string
+ * Writes into product_notification_subscribers. Links to oglife_optins
+ * by session sub if present; anonymous subscriptions are allowed (optin_id
+ * stays NULL) so the homepage form works pre-signup.
  */
 
 import { NextResponse } from "next/server";
+import { getSession } from "@/lib/session";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -48,13 +45,36 @@ export async function POST(req: Request) {
     );
   }
 
-  // TODO(P3): require session, look up optin_id, then:
-  //   INSERT INTO product_notification_subscribers
-  //     (optin_id, channel, strain_slug, product_slug, category)
-  //   VALUES (...) ON CONFLICT (optin_id, channel, ...) DO UPDATE SET is_active = true;
-  console.log("[notif:subscribe]", { strain_slug, channel, product_slug, category });
+  if (dbConfigured()) {
+    const sql = getSql();
+    const session = await getSession();
 
-  // If a non-API form posted, redirect back so the page doesn't blank.
+    let optin_id: number | null = null;
+    if (session) {
+      const rows = (await sql`
+        INSERT INTO oglife_optins (oglife_user_id, email)
+        VALUES (${session.sub}, ${session.email})
+        ON CONFLICT (oglife_user_id) DO UPDATE SET email = EXCLUDED.email
+        RETURNING id
+      `) as { id: number }[];
+      optin_id = rows[0].id;
+    }
+
+    try {
+      await sql`
+        INSERT INTO product_notification_subscribers
+          (optin_id, channel, product_slug, strain_slug, category, is_active)
+        VALUES
+          (${optin_id}, ${channel}, ${product_slug}, ${strain_slug || null}, ${category}, true)
+        ON CONFLICT (optin_id, channel, product_slug, strain_slug, category)
+        DO UPDATE SET is_active = true
+      `;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "subscribe-failed";
+      return NextResponse.json({ error: "subscribe-failed", detail }, { status: 500 });
+    }
+  }
+
   if (!ct.includes("application/json")) {
     return NextResponse.redirect(new URL("/strains/updates?subscribed=1", req.url), 303);
   }

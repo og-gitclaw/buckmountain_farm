@@ -11,6 +11,7 @@
  */
 
 import webpush, { type PushSubscription } from "web-push";
+import { dbConfigured, getSql } from "@/lib/db";
 
 type Payload = {
   title: string;
@@ -54,16 +55,46 @@ export async function broadcast(payload: Payload) {
   if (!ensureConfigured()) {
     return { ok: false as const, skipped: true, reason: "vapid-not-configured", sent: 0 };
   }
-  // TODO(P3): SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE is_active = true.
-  // For now, the list is empty until the DB is wired.
-  const subs: PushSubscription[] = [];
+  if (!dbConfigured()) {
+    return { ok: false as const, skipped: true, reason: "db-not-configured", sent: 0 };
+  }
+
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, endpoint, p256dh, auth
+      FROM push_subscriptions
+     WHERE is_active = true
+  `) as { id: number; endpoint: string; p256dh: string; auth: string }[];
+
   let sent = 0;
   let failed = 0;
-  for (const sub of subs) {
+  // Mark these as inactive after the loop so we batch the UPDATE.
+  const deadIds: number[] = [];
+
+  for (const row of rows) {
+    const sub: PushSubscription = {
+      endpoint: row.endpoint,
+      keys: { p256dh: row.p256dh, auth: row.auth },
+    };
     const r = await sendToOne(sub, payload);
-    if (r.ok) sent++;
-    else failed++;
-    // TODO(P3): if statusCode is 404 or 410, mark sub inactive.
+    if (r.ok) {
+      sent++;
+    } else {
+      failed++;
+      // 404 = endpoint gone, 410 = subscription expired. Either way, retire.
+      if ("statusCode" in r && (r.statusCode === 404 || r.statusCode === 410)) {
+        deadIds.push(row.id);
+      }
+    }
   }
-  return { ok: true as const, sent, failed };
+
+  if (deadIds.length > 0) {
+    try {
+      await sql`UPDATE push_subscriptions SET is_active = false WHERE id = ANY(${deadIds})`;
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  return { ok: true as const, sent, failed, retired: deadIds.length };
 }
