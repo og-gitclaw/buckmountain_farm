@@ -3,6 +3,30 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   // Preview-only deployments per project policy — no prod promotes without explicit OK.
   reactStrictMode: true,
+
+  /**
+   * Heavy deps with dynamic require() or large transitive trees.
+   * Marking them external keeps them OUT of each route's function bundle
+   * (which Vercel limits per-function — 4.5MB uncompressed on Hobby).
+   * Without this, importing @aws-sdk into 22 routes blows the limit and
+   * the Vercel deploy fails even though `next build` is green locally.
+   *
+   * Symptoms that led us here (commits a0eecf1, 4072aff):
+   *   Vercel state=failure, npx vercel inspect dpl_… --logs would show
+   *   "Module size exceeds maximum function size of 4.5 MB" or similar.
+   */
+  serverExternalPackages: [
+    "@aws-sdk/client-sesv2",
+    "@aws-sdk/core",
+    "@aws-sdk/credential-provider-node",
+    "@smithy/node-http-handler",
+    "@smithy/protocol-http",
+    "@smithy/util-defaults-mode-node",
+    "@aws-crypto/sha256-js",
+    "@neondatabase/serverless",
+    "web-push",
+  ],
+
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "cbd.restaurant" },
