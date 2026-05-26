@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbConfigured, getSql } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
       const detail = err instanceof Error ? err.message : "consent-write-failed";
       return NextResponse.json({ error: "consent-write-failed", detail }, { status: 500 });
     }
+  }
+
+  if (session) {
+    sendTransactional({
+      template: "consent-confirmed",
+      to: session.email,
+      vars: { consents },
+      related: { kind: "consent", id: session.sub },
+    }).catch(() => {});
   }
 
   return NextResponse.redirect(new URL(returnTo, req.url), 303);

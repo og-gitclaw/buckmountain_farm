@@ -16,6 +16,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbConfigured, getPool } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -97,7 +98,7 @@ export async function POST(
       );
     }
 
-    // 5. Current balance.
+    // 5. Current balance + product name (for email body).
     const bal = await client.query(
       `SELECT COALESCE(SUM(delta_tokens), 0)::int AS balance
          FROM rewards_ledger WHERE optin_id = $1`,
@@ -105,7 +106,35 @@ export async function POST(
     );
     const balance: number = bal.rows[0].balance;
 
+    const prod = await client.query(
+      `SELECT p.name, p.slug
+         FROM qr_tokens t
+         LEFT JOIN batches b  ON b.id = t.batch_id
+         LEFT JOIN products p ON p.id = b.product_id
+        WHERE t.token = $1`,
+      [token],
+    );
+    const product_name: string | null = prod.rows[0]?.name ?? null;
+    const product_slug: string | null = prod.rows[0]?.slug ?? null;
+
     await client.query("COMMIT");
+
+    // Fire credit confirmation only when we actually credited.
+    if (credited > 0) {
+      sendTransactional({
+        template: "scan-points-credited",
+        to: session.email,
+        vars: {
+          points: credited,
+          balance,
+          product_name,
+          product_url: product_slug ? `https://buckmountain.farm/strains/${product_slug}` : null,
+        },
+        optin_id,
+        related: { kind: "scan-claim", id: token },
+      }).catch(() => {});
+    }
+
     return NextResponse.json(
       { ok: true, token, credited, balance, first_claim },
       { status: 200 },

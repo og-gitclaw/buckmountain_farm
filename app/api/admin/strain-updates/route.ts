@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { alpineiq } from "@/lib/alpineiq";
 import { broadcast as pushBroadcast } from "@/lib/push";
 import { dbConfigured, getSql } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -45,25 +46,56 @@ export async function POST(req: Request) {
     }
   }
 
-  let blastResult: unknown = { skipped: true, reason: "not-requested" };
   if (also_blast) {
     const audienceId = process.env.ALPINEIQ_DEFAULT_AUDIENCE_ID ?? "";
-    const sms = audienceId
-      ? await alpineiq.broadcastNewProduct({
-          audience_id: audienceId,
-          product_slug: strain_slug,
-          headline,
-          body,
-          cta_url: `/strains/${strain_slug}`,
-        })
-      : { skipped: true as const, reason: "no-audience-id" };
-    const push = await pushBroadcast({
+    if (audienceId) {
+      await alpineiq.broadcastNewProduct({
+        audience_id: audienceId,
+        product_slug: strain_slug,
+        headline,
+        body,
+        cta_url: `/strains/${strain_slug}`,
+      });
+    }
+    await pushBroadcast({
       title: headline,
       body,
       url: `/strains/${strain_slug}`,
       tag: `strain-update:${strain_slug}`,
     });
-    blastResult = { sms, push };
+
+    // Email blast — fan out to every active subscriber for this strain.
+    // Match against strain_slug OR a broader category. Per-recipient SES
+    // calls (no BCC) so bounces resolve cleanly + unsubscribes are
+    // individual.
+    if (dbConfigured()) {
+      try {
+        const sql = getSql();
+        const subs = (await sql`
+          SELECT DISTINCT o.email
+            FROM product_notification_subscribers s
+            JOIN oglife_optins o ON o.id = s.optin_id
+           WHERE s.is_active = true
+             AND s.channel = 'email'
+             AND (s.strain_slug = ${strain_slug} OR s.product_slug = ${strain_slug})
+        `) as { email: string }[];
+        for (const sub of subs) {
+          sendTransactional({
+            template: "strain-drop",
+            to: sub.email,
+            vars: {
+              strain_name: strain_slug,
+              strain_slug,
+              headline,
+              body,
+            },
+            related: { kind: "strain-drop", id: strain_slug },
+          }).catch(() => {});
+        }
+      } catch {
+        // non-fatal — push + SMS still went out
+      }
+    }
   }
 
   return NextResponse.redirect(

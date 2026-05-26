@@ -18,6 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { dbConfigured, getPool } from "@/lib/db";
+import { sendToAdmin } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -124,6 +125,18 @@ export async function POST(req: Request) {
     );
 
     await client.query("COMMIT");
+
+    sendToAdmin({
+      template: "qr-sheet-ingested",
+      vars: {
+        sheet_code: body.sheet_code ?? null,
+        tokens_inserted,
+        tokens_skipped,
+        asset_id: body.asset_id ?? null,
+      },
+      related: { kind: "qr-sheet-ingest", id: body.sheet_code ?? String(sheet_id) },
+    }).catch(() => {});
+
     return NextResponse.json(
       {
         ok: true,

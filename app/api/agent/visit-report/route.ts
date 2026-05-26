@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { dbConfigured, getPool } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
 
   const pool = getPool();
   const client = await pool.connect();
+  let dispensary_name: string | null = null;
+  let agent_email: string | null = null;
   try {
     await client.query("BEGIN");
     // Ensure a placeholder agent row exists until SSO-driven seeding is in place.
@@ -43,9 +46,10 @@ export async function POST(req: Request) {
       `INSERT INTO agents (google_sub, email, display_name, role)
        VALUES ('system-placeholder', 'system@buckmountain.farm', 'System', 'admin')
        ON CONFLICT (google_sub) DO UPDATE SET email = EXCLUDED.email
-       RETURNING id`,
+       RETURNING id, email`,
     );
     const agent_id: number = agent.rows[0].id;
+    agent_email = agent.rows[0].email;
 
     await client.query(
       `INSERT INTO visit_reports
@@ -53,10 +57,11 @@ export async function POST(req: Request) {
        VALUES ($1, $2, $3, $4, $5::jsonb)`,
       [agent_id, dispensary_id, contact_name, summary, JSON.stringify(action_items)],
     );
-    await client.query(
-      `UPDATE dispensaries SET updated_at = now() WHERE id = $1`,
+    const disp = await client.query(
+      `UPDATE dispensaries SET updated_at = now() WHERE id = $1 RETURNING name`,
       [dispensary_id],
     );
+    dispensary_name = disp.rows[0]?.name ?? null;
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -64,6 +69,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "insert-failed", detail }, { status: 500 });
   } finally {
     client.release();
+  }
+
+  if (agent_email) {
+    sendTransactional({
+      template: "visit-report-filed",
+      to: agent_email,
+      vars: {
+        agent_email,
+        dispensary_id,
+        dispensary_name,
+        contact_name,
+        summary,
+        action_items,
+      },
+      bccAdmin: true,
+      related: { kind: "visit-report", id: dispensary_id },
+    }).catch(() => {});
   }
 
   return NextResponse.redirect(

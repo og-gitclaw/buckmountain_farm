@@ -23,6 +23,7 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { dbConfigured, getSql } from "@/lib/db";
+import { sendToAdmin } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -89,6 +90,19 @@ export async function POST(
   `) as TokenLookup[];
 
   if (lookup.length === 0) {
+    // Counterfeit-pattern: token isn't in our pre-allocated set. Notify
+    // admins async so we can spot clusters around the same geo / IP hash.
+    sendToAdmin({
+      template: "counterfeit-alert",
+      vars: {
+        token,
+        ip_hash,
+        geo_city: geoCity,
+        geo_country: geoCountry,
+        user_agent: ua,
+      },
+      related: { kind: "scan-counterfeit", id: token },
+    }).catch(() => {});
     return NextResponse.json(
       { ok: false, error: "not-a-valid-sticker" },
       { status: 404 },

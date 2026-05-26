@@ -404,6 +404,54 @@ CREATE TABLE IF NOT EXISTS merch_items (
 );
 
 -- ====================================================================
+-- emails_outbound — every transactional email sent (or attempted).
+--
+-- Auditable record of who got what message, when, and the SES message_id
+-- for bounce/complaint correlation. Populated by lib/email/sendTransactional().
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS emails_outbound (
+  id                 bigserial PRIMARY KEY,
+  template           text NOT NULL,                       -- 'welcome', 'order-shipped', ...
+  recipient          text NOT NULL,                       -- email address
+  recipient_optin_id bigint REFERENCES oglife_optins(id) ON DELETE SET NULL,
+  subject            text NOT NULL,
+  vars               jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ses_message_id     text,
+  status             text NOT NULL DEFAULT 'queued'
+                       CHECK (status IN ('queued', 'sent', 'failed', 'bounced', 'complained')),
+  error              text,
+  queued_at          timestamptz NOT NULL DEFAULT now(),
+  sent_at            timestamptz,
+  related_kind       text,                                -- 'scan', 'order', 'visit_report', ...
+  related_id         text
+);
+CREATE INDEX IF NOT EXISTS emails_outbound_recipient_idx ON emails_outbound (recipient);
+CREATE INDEX IF NOT EXISTS emails_outbound_status_idx    ON emails_outbound (status);
+CREATE INDEX IF NOT EXISTS emails_outbound_template_idx  ON emails_outbound (template);
+CREATE INDEX IF NOT EXISTS emails_outbound_queued_idx    ON emails_outbound (queued_at DESC);
+
+-- ====================================================================
+-- order_status_seen — what status we last observed for each Nabis order.
+--
+-- Lets the cron polling job fire transactional emails ONLY on transitions
+-- (placed → accepted → shipped → out-for-delivery → delivered → review).
+-- nabis_sync table holds the full Nabis payload; this table is just the
+-- diff cursor.
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS order_status_seen (
+  nabis_order_id  text PRIMARY KEY,
+  order_number    text,
+  last_status     text NOT NULL,
+  last_seen_at    timestamptz NOT NULL DEFAULT now(),
+  buyer_email     text,
+  buyer_name      text,
+  carrier         text,
+  tracking_number text,
+  tracking_url    text
+);
+CREATE INDEX IF NOT EXISTS order_status_seen_status_idx ON order_status_seen (last_status);
+
+-- ====================================================================
 -- audit_log — admin actions on the dashboard
 -- ====================================================================
 CREATE TABLE IF NOT EXISTS audit_log (

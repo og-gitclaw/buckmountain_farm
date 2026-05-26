@@ -12,6 +12,7 @@ const TILES = [
   { href: "/admin/strain-updates", title: "Post strain update", desc: "Compose for the homepage feed + optionally blast." },
   { href: "/admin/orders", title: "Nabis orders", desc: "Full pipeline across all dispensaries." },
   { href: "/admin/qr-sheets", title: "QR sheets", desc: "Ingested print sheets + token counts." },
+  { href: "/admin/emails", title: "Outbound emails", desc: "SES transactional log + status + test send." },
   { href: "/agent", title: "Agent portal", desc: "BMH-parity field-rep view." },
 ];
 

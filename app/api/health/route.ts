@@ -36,6 +36,10 @@ export async function GET() {
       session_secret: !!process.env.SESSION_SECRET,
       blob_storage: !!process.env.BLOB_READ_WRITE_TOKEN,
       metrc: !!process.env.METRC_USER_KEY,
+      ses_transactional:
+        !!process.env.AWS_ACCESS_KEY_ID &&
+        !!process.env.AWS_SECRET_ACCESS_KEY &&
+        !!(process.env.AWS_SES_REGION || process.env.AWS_REGION),
     },
   });
 }

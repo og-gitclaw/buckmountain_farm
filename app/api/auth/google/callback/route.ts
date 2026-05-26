@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { dbConfigured, getSql } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -120,18 +121,37 @@ export async function GET(req: Request) {
   // stay empty here (the user fills them via /auth/consent right after). If
   // the DB isn't configured we still issue the session cookie so the rest
   // of the flow works in preview deploys.
+  let isFirstSignIn = false;
   if (dbConfigured()) {
     const sql = getSql();
     try {
-      await sql`
+      // `xmax = 0` is Postgres's trick for "this row was just inserted, not updated"
+      // — works because UPDATE sets xmax to the txid that did the update, while a
+      // fresh INSERT leaves it at 0.
+      const rows = (await sql`
         INSERT INTO oglife_optins (oglife_user_id, email)
         VALUES (${user.sub}, ${user.email})
         ON CONFLICT (oglife_user_id) DO UPDATE SET email = EXCLUDED.email
-      `;
+        RETURNING (xmax = 0) AS inserted
+      `) as { inserted: boolean }[];
+      isFirstSignIn = rows[0]?.inserted ?? false;
     } catch {
       // Don't block sign-in on DB hiccups — the upsert retries naturally
       // when the user submits /auth/consent or scans their next jar.
     }
+  }
+
+  // Fire welcome email only on the FIRST sign-in. We don't await it —
+  // shouldn't block the auth redirect on a slow SES call.
+  if (isFirstSignIn) {
+    sendTransactional({
+      template: "welcome",
+      to: user.email,
+      vars: { recipient_name: user.name },
+      related: { kind: "signup", id: user.sub },
+    }).catch(() => {
+      /* logged in emails_outbound */
+    });
   }
 
   const returnTo =

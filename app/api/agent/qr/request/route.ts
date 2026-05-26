@@ -16,6 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { dbConfigured, getPool } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -103,6 +104,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "alloc-failed", detail: msg }, { status: 500 });
   } finally {
     client.release();
+  }
+
+  // Notify the Photoshop team with the token list + pickup path. Recipient
+  // list comes from PHOTOSHOP_TEAM_RECIPIENTS (comma-separated emails).
+  const photoshop = (process.env.PHOTOSHOP_TEAM_RECIPIENTS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const to of photoshop) {
+    sendTransactional({
+      template: "qr-sheet-allocated",
+      to,
+      vars: {
+        sheet_code,
+        count,
+        tokens,
+        notes,
+        pickup_path:
+          process.env.PHOTOSHOP_SYNC_PATH ??
+          "Tailscale → openclaw:~/openclaw-media-ingestor/buckmountain/qr-sheets/",
+      },
+      related: { kind: "qr-allocation", id: sheet_code },
+    }).catch(() => {});
   }
 
   if ((req.headers.get("accept") ?? "").includes("application/json")) {

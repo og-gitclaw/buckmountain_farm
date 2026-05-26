@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbConfigured, getSql } from "@/lib/db";
+import { sendTransactional } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,24 @@ export async function POST(req: Request) {
     } catch (err) {
       const detail = err instanceof Error ? err.message : "subscribe-failed";
       return NextResponse.json({ error: "subscribe-failed", detail }, { status: 500 });
+    }
+  }
+
+  // Confirmation email only when we know who they are.
+  if (dbConfigured()) {
+    const session = await getSession();
+    if (session?.email) {
+      sendTransactional({
+        template: "subscription-confirmed",
+        to: session.email,
+        vars: {
+          strain_slug: strain_slug || null,
+          product_slug,
+          category,
+          channel: channel as "push" | "sms" | "email",
+        },
+        related: { kind: "notification-sub", id: strain_slug || product_slug || category || "" },
+      }).catch(() => {});
     }
   }
 
