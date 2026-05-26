@@ -32,14 +32,22 @@ import { useEffect, useRef, useState } from "react";
 export function VideoScene({
   src,
   poster,
-  overlayOpacity = 0.5,
+  // Tone-down defaults (2026-05-26) so the mid-page video sections feel
+  // like atmospheric backgrounds, not cinematic interruptions.
+  overlayOpacity = 0.7,
   align = "left",
+  videoBlurPx = 2,
+  videoBrightness = 0.78,
+  videoSaturate = 0.8,
   children,
 }: {
   src: string;
   poster?: string;
   overlayOpacity?: number;
   align?: "left" | "center" | "right";
+  videoBlurPx?: number;
+  videoBrightness?: number;
+  videoSaturate?: number;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -103,12 +111,25 @@ export function VideoScene({
         autoPlay
         preload="metadata"
         className="absolute inset-0 h-full w-full object-cover"
+        style={{
+          filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
+        }}
         aria-hidden
       />
       <div
         className="absolute inset-0 bg-black"
         style={{ opacity: overlayOpacity }}
         aria-hidden
+      />
+      {/* Top + bottom edge fade so the section reads as a panel, not
+          a hard-edged movie frame. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0) 22%, rgba(10,10,10,0) 78%, rgba(10,10,10,0.55) 100%)",
+        }}
       />
       <div
         className={`relative z-10 flex min-h-screen w-full p-8 md:p-16 ${alignClass}`}

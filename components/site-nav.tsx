@@ -20,9 +20,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { StrainSearch } from "@/components/strain-search";
 
 const LINKS = [
   { href: "/strains", label: "Strains" },
+  { href: "/drops", label: "Drops" },
   { href: "/store", label: "Store" },
   { href: "/blog", label: "Blog" },
   { href: "/loyalty", label: "Loyalty" },
@@ -93,6 +95,7 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
+          <StrainSearch />
           <a
             href={INSTAGRAM_URL}
             target="_blank"

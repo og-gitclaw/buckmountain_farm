@@ -37,14 +37,22 @@ import { useEffect, useRef, useState } from "react";
 export function VideoParallaxHero({
   src,
   poster,
-  parallaxFactor = 0.25,
-  overlayOpacity = 0.45,
+  // 2026-05-26 tone-down: slower parallax + darker overlay + gentle blur
+  // so the video reads as backdrop instead of cinematic main act.
+  parallaxFactor = 0.15,
+  overlayOpacity = 0.62,
+  videoBlurPx = 1.5,
+  videoBrightness = 0.85,
+  videoSaturate = 0.85,
   children,
 }: {
   src: string;
   poster?: string;
   parallaxFactor?: number;
   overlayOpacity?: number;
+  videoBlurPx?: number;
+  videoBrightness?: number;
+  videoSaturate?: number;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -121,7 +129,20 @@ export function VideoParallaxHero({
           autoPlay
           preload="metadata"
           className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
+          }}
           aria-hidden
+        />
+        {/* Soft top-and-bottom fade so the foreground content sits cleanly
+            over the busiest frame regions. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 35%, rgba(0,0,0,0.0) 65%, rgba(0,0,0,0.55) 100%)",
+          }}
         />
         <div
           className="absolute inset-0 bg-black"

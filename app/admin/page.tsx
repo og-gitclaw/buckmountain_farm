@@ -10,6 +10,7 @@ import Link from "next/link";
 const TILES = [
   { href: "/admin/assets", title: "Asset dashboard", desc: "Files ingested from openclaw." },
   { href: "/admin/strain-updates", title: "Post strain update", desc: "Compose for the homepage feed + optionally blast." },
+  { href: "/admin/drops", title: "Add current drop", desc: "Manual drop entry (where to find strains right now)." },
   { href: "/admin/orders", title: "Nabis orders", desc: "Full pipeline across all dispensaries." },
   { href: "/admin/qr-sheets", title: "QR sheets", desc: "Ingested print sheets + token counts." },
   { href: "/admin/emails", title: "Outbound emails", desc: "SES transactional log + status + test send." },

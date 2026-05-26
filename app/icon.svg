@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Favicon — bolder, simpler than the full mark. Just the antlered skull
+  on a purple-on-dark roundel. Reads at 16x16 because the antlers are
+  thick strokes and the skull silhouette stays high-contrast.
+  Next.js App Router auto-discovers app/icon.svg as the site favicon.
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  role="img"
+  aria-label="Buck Mountain"
+>
+  <!-- dark backdrop disc -->
+  <circle cx="32" cy="32" r="30" fill="#0a0a0a" />
+  <!-- purple ring -->
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#5B3A8A" stroke-width="2" />
+
+  <!-- antlers, thick -->
+  <path
+    d="M 26 22
+       C 22 14 18 10 12 9
+       M 24 16 C 19 16 14 14 12 12
+       M 26 22 C 22 21 16 22 12 24"
+    stroke="#C9A24A"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <path
+    d="M 38 22
+       C 42 14 46 10 52 9
+       M 40 16 C 45 16 50 14 52 12
+       M 38 22 C 42 21 48 22 52 24"
+    stroke="#C9A24A"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+
+  <!-- skull -->
+  <path
+    d="M 22 24
+       C 18 32 18 42 26 48
+       L 32 52
+       L 38 48
+       C 46 42 46 32 42 24
+       Q 32 18 22 24 Z"
+    fill="#C9A24A"
+  />
+  <!-- eye sockets — exaggerated so they read small -->
+  <ellipse cx="27" cy="36" rx="2.4" ry="3.2" fill="#0a0a0a" />
+  <ellipse cx="37" cy="36" rx="2.4" ry="3.2" fill="#0a0a0a" />
+  <!-- nose -->
+  <path d="M 32 42 L 30 47 L 34 47 Z" fill="#0a0a0a" />
+</svg>

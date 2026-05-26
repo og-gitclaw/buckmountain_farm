@@ -5,15 +5,29 @@
  *   - "Always Grinding" T-Shirts (3 colors)
  *   - Buck Mountain Tech Decks (2 colors, limited)
  *
- * For v1 this is a brochure page that drives users to the IG DMs /
- * email for purchase. v2 wires Shopify or BigCommerce checkout once
- * Brendon picks a backend (decision logged in handoff/STORE_PLATFORM.md
- * when ready).
+ * For v1 this is a brochure page that drives users to the IG DMs / email
+ * for purchase. v2 wires a real checkout once Brendon picks a backend
+ * (Shopify vs BigCommerce vs Square — see handoff/STORE_PLATFORM.md).
+ *
+ * Cards now use ProductPlaceholder (procedural SVG keyed to line/color)
+ * instead of the prior generic logo-on-gradient. Real photos slot into
+ * `image_url` on each item; when present the <img> takes over and the
+ * placeholder hides.
  */
 
-import Image from "next/image";
+import { ProductPlaceholder } from "@/components/product-placeholder";
 
-const ITEMS = [
+type Item = {
+  id: string;
+  name: string;
+  line: string;
+  desc: string;
+  price: number;
+  status: "available" | "low-stock" | "limited" | "sold-out";
+  image_url?: string | null;
+};
+
+const ITEMS: Item[] = [
   {
     id: "tee-always-grinding-black",
     name: "Always Grinding Tee — Black",
@@ -56,7 +70,7 @@ const ITEMS = [
   },
 ];
 
-const STATUS_TINT: Record<string, string> = {
+const STATUS_TINT: Record<Item["status"], string> = {
   available: "text-emerald-300",
   "low-stock": "text-amber-300",
   limited: "text-rose-300",
@@ -83,14 +97,22 @@ export default function StorePage() {
             key={it.id}
             className="reveal-on-scroll rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden flex flex-col"
           >
-            <div className="aspect-square bg-gradient-to-br from-neutral-800 via-neutral-900 to-black grid place-items-center">
-              <Image
-                src="/brand/logo.svg"
-                alt=""
-                width={120}
-                height={90}
-                className="opacity-30"
-              />
+            <div className="aspect-square">
+              {it.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={it.image_url}
+                  alt={it.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <ProductPlaceholder
+                  name={it.name}
+                  line={it.line}
+                  className="h-full w-full"
+                />
+              )}
             </div>
             <div className="p-5 flex-1 flex flex-col">
               <p className="text-xs uppercase tracking-wider text-white/40">
@@ -100,7 +122,7 @@ export default function StorePage() {
               <p className="mt-2 text-sm text-white/70 flex-1">{it.desc}</p>
               <div className="mt-4 flex items-center justify-between">
                 <span className="font-semibold">${it.price}</span>
-                <span className={`text-xs uppercase tracking-wider ${STATUS_TINT[it.status] ?? ""}`}>
+                <span className={`text-xs uppercase tracking-wider ${STATUS_TINT[it.status]}`}>
                   {it.status.replace("-", " ")}
                 </span>
               </div>
