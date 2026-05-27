@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { SiteNav } from "@/components/site-nav";
+import { AgeGate } from "@/components/age-gate";
 
 export const metadata: Metadata = {
   title: "Buck Mountain Cannabis — Sierra Foothills",
@@ -14,7 +16,22 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  robots: { index: true, follow: true },
+  icons: { icon: "/brand/logo.svg" },
+  // Search-engine lockdown until Randy approves public launch.
+  // See handoff/PROD_PROMOTE.md for the toggle ceremony.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false, noimageindex: true },
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -22,7 +39,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteNav />
+        {children}
+        <AgeGate />
+      </body>
     </html>
   );
 }

@@ -1,16 +1,62 @@
 /**
- * Admin asset dashboard — view what the openclaw watcher has ingested.
+ * /admin/assets — what the openclaw watcher has ingested.
  *
- * TODO(P2): once Neon is wired, this reads from the `assets` table.
- * For now it's a static placeholder so the route exists and Brendon
- * can see the path. Auth gate is TODO — currently anyone with the
- * URL can view (preview-only, behind Vercel password protection).
+ * Reads assets ordered by ingested_at DESC. Stub fallback when DB
+ * isn't configured. Auth gate is TODO — currently behind Vercel
+ * Deployment Protection only.
  */
 
-export default function AdminAssetsPage() {
+import Link from "next/link";
+import { dbConfigured, getSql } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type Row = {
+  id: string;
+  bucket: string;
+  route: string;
+  kind: string;
+  tags: string[];
+  file_name: string;
+  size_bytes: number;
+  review_status: string;
+  blob_url: string | null;
+  ingested_at: string;
+};
+
+async function loadAssets(): Promise<{ rows: Row[]; stub: boolean }> {
+  if (!dbConfigured()) return { rows: [], stub: true };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT id, bucket, route, kind, tags, file_name, size_bytes,
+             review_status, blob_url, ingested_at
+        FROM assets
+       ORDER BY ingested_at DESC
+       LIMIT 100
+    `) as Row[];
+    return { rows, stub: false };
+  } catch {
+    return { rows: [], stub: true };
+  }
+}
+
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+export default async function AdminAssetsPage() {
+  const { rows, stub } = await loadAssets();
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8 md:p-12">
-      <header className="max-w-5xl mx-auto mb-8">
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8 md:p-12 pt-28 md:pt-32">
+      <nav className="max-w-6xl mx-auto mb-4 text-sm">
+        <Link href="/admin" className="text-sky-400 hover:underline">← Admin</Link>
+      </nav>
+      <header className="max-w-6xl mx-auto mb-8">
         <h1 className="text-3xl font-bold">Asset dashboard</h1>
         <p className="text-neutral-400 mt-2">
           Files routed here from the <code>openclaw media ingestor</code> →
@@ -18,15 +64,70 @@ export default function AdminAssetsPage() {
         </p>
       </header>
 
-      <section className="max-w-5xl mx-auto">
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-6">
-          <p className="text-neutral-500 italic">
-            (Stub) Once Neon is provisioned and the watcher's <code>BUCKMOUNTAIN_DASHBOARD_URL</code>
-            is set, records will list here grouped by date and tag (jar-shot, strain-still,
-            proof-of-life, video-raw). Filter by strain, route (trusted vs cross-folder),
-            kind (image/video).
-          </p>
-        </div>
+      <section className="max-w-6xl mx-auto">
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-6">
+            <p className="text-neutral-500 italic">
+              No assets ingested yet.{" "}
+              {stub
+                ? "DB not configured here — preview shows empty state."
+                : "Once the watcher is running on openclaw, records appear here within ~30s."}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-neutral-500 text-left">
+                <tr className="border-b border-neutral-800">
+                  <th className="py-3 px-4">File</th>
+                  <th className="py-3 px-4">Kind</th>
+                  <th className="py-3 px-4">Bucket</th>
+                  <th className="py-3 px-4">Tags</th>
+                  <th className="py-3 px-4">Size</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Ingested</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b border-neutral-900 hover:bg-neutral-900/60">
+                    <td className="py-3 px-4 truncate max-w-[280px]" title={r.file_name}>
+                      {r.blob_url ? (
+                        <a href={r.blob_url} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">
+                          {r.file_name}
+                        </a>
+                      ) : (
+                        r.file_name
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-neutral-400">{r.kind}</td>
+                    <td className="py-3 px-4 text-neutral-400">{r.bucket}</td>
+                    <td className="py-3 px-4 text-neutral-400 text-xs">
+                      {r.tags?.join(", ") || "—"}
+                    </td>
+                    <td className="py-3 px-4 text-neutral-400">{humanSize(r.size_bytes)}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={
+                          r.review_status === "approved"
+                            ? "text-emerald-300"
+                            : r.review_status === "rejected"
+                              ? "text-rose-300"
+                              : "text-amber-300"
+                        }
+                      >
+                        {r.review_status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-neutral-400">
+                      {new Date(r.ingested_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900/50 p-6 text-sm">
           <h2 className="font-semibold mb-2">Watcher status</h2>

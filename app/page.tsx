@@ -1,64 +1,127 @@
 import { ParallaxBackdrops } from "@/components/parallax-backdrops";
+import { VideoParallaxHero } from "@/components/video-parallax-hero";
+import { VideoScene } from "@/components/video-scene";
+import { StrainUpdates } from "@/components/strain-updates";
+import { loadStrainUpdates } from "@/lib/strain-updates";
 
 /**
- * Homepage — replicates the buckmountaincannabis.com vibe but tones it down:
- *   - 5 backdrop images that slow-scroll behind content (skrollr-style)
- *   - Translucent dark overlay so foreground text is legible
- *   - Sections from the existing site, in order: Hero → Hybrid Environments
- *     → Outdoor Hoop Dreams → Cultivation Gallery → FAQ
+ * Homepage — visual flow:
  *
- * Per project rule (prefers-reduced-motion + sensory-friendly safeguards),
- * parallax disables itself when the OS reports reduced-motion preference.
+ *   1. Hero            — aerial-establish loop (hero-a, 5.5s)
+ *   2. Strain Updates  — cards
+ *   3. Hybrid Env.     — interior HPS loop (hero-b, 5s) behind copy
+ *   4. Hoop Dreams     — outdoor flower loop (hero-c, 5.7s) behind copy, center-aligned
+ *   5. Cultivation     — Sierra-foothills aerial loop (hero-d, 7.3s) behind copy
+ *   6. Parallax tail   — 3 static backdrops as a slow contemplative scroll
+ *                        (the other 2 backdrops moved to /about gallery)
+ *   7. FAQ             — overlaid on the parallax tail
+ *   8. Footer
  *
- * Backdrops are TEMP placeholders until P1.5 ships the ripped-asset import —
- * the ParallaxBackdrops component reads from /public/assets/backdrops/*.
+ * Background on why this changed from the 2026-05-24 placeholder:
+ *   - The original hero.mp4 (57s, 19MB) was the entire legacy montage. The
+ *     IntersectionObserver-paused loop played all of it at the top of the
+ *     page, way overweight for a hero. Scene-detected 27 cuts → spliced
+ *     into 4 thematic 5-7s loops via ffmpeg (see commit log + handoff/asset-manifest.md).
+ *   - ParallaxBackdrops was fixed-positioned at z-0 starting at scrollY=0,
+ *     causing backdrop[0] (purple cannabis flower) to bleed THROUGH the
+ *     hero video. Now uses startOffset to defer activation until after the
+ *     video sections.
+ *
+ * Mobile-2026 effects still in play:
+ *   - Video parallax hero (scroll-decoupled, IO-paused)
+ *   - reveal-on-scroll on strain-update cards
+ *   - View Transitions on internal nav clicks
+ *   - prefers-reduced-motion safe everywhere
  */
-export default function Home() {
+// Refresh the strain-updates feed every 60s. Keeps the homepage fresh
+// without crushing the DB; build-time prerender works too (placeholder set).
+export const revalidate = 60;
+
+export default async function Home() {
+  const updates = await loadStrainUpdates(6);
   return (
     <main className="relative">
-      <ParallaxBackdrops
-        images={[
-          { src: "/assets/backdrops/01-hybrid.jpg", caption: "Hybrid Environments" },
-          { src: "/assets/backdrops/02-hoop.jpg", caption: "Outdoor Hoop Dreams" },
-          { src: "/assets/backdrops/03-cultivation.jpg", caption: "Cultivation" },
-          { src: "/assets/backdrops/04-jars.jpg", caption: "Glass" },
-          { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
-        ]}
-      />
-
-      <section className="relative z-10 flex min-h-screen items-end p-8 md:p-16">
+      <VideoParallaxHero
+        src="/assets/video/hero-a-establish.mp4"
+        poster="/assets/video/hero-a-establish-poster.jpg"
+      >
         <div className="max-w-2xl">
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
             Buck Mountain Cannabis
           </h1>
           <p className="mt-4 text-lg md:text-xl text-white/80">
-            Legacy cannabis brand in the Sierra foothills of Nevada County, CA.
+            A legacy cannabis brand in the Sierra foothills of Nevada County, Ca.
           </p>
         </div>
-      </section>
+      </VideoParallaxHero>
 
-      <section className="relative z-10 min-h-screen flex items-center p-8 md:p-16">
-        <div className="max-w-2xl">
-          <h2 className="text-4xl md:text-6xl font-bold">Hybrid Environments</h2>
-          <p className="mt-4 text-white/80">
-            From full-organic hand-pulled light deps to mixed-light outdoor space ships,
-            we utilize the best of both worlds with our syngonic approach to plant nutrition
-            and our mixture of full-sunlight and HPS lighting.
-          </p>
-        </div>
-      </section>
+      <StrainUpdates updates={updates} />
 
-      <section className="relative z-10 min-h-screen flex items-center justify-center p-8 md:p-16 text-center">
-        <div className="max-w-3xl">
-          <h2 className="text-4xl md:text-6xl font-bold uppercase tracking-wider">
-            Outdoor<br />Hoop Dreams
-          </h2>
-          <p className="mt-4 text-white/80">Bringing a new level of quality to outdoor growing.</p>
-        </div>
-      </section>
+      <VideoScene
+        src="/assets/video/hero-b-interior.mp4"
+        poster="/assets/video/hero-b-interior-poster.jpg"
+        align="left"
+      >
+        <p className="uppercase tracking-[0.25em] text-xs text-white/60">
+          Inside the grow
+        </p>
+        <h2 className="text-4xl md:text-6xl font-bold mt-2">
+          Hybrid Environments
+        </h2>
+        <p className="mt-4 text-lg text-white/85 max-w-xl">
+          From full-organic hand-pulled light deps to mixed-light outdoor space
+          ships, we utilize the best of both worlds — a syngonic approach to
+          plant nutrition and a mixture of full sunlight and HPS lighting.
+        </p>
+      </VideoScene>
+
+      <VideoScene
+        src="/assets/video/hero-c-flower.mp4"
+        poster="/assets/video/hero-c-flower-poster.jpg"
+        align="center"
+        overlayOpacity={0.4}
+      >
+        <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
+          Outdoor<br />Hoop Dreams
+        </h2>
+        <p className="mt-4 text-lg text-white/85 max-w-xl mx-auto">
+          Bringing a new level of quality to outdoor growing.
+        </p>
+      </VideoScene>
+
+      <VideoScene
+        src="/assets/video/hero-d-foothills.mp4"
+        poster="/assets/video/hero-d-foothills-poster.jpg"
+        align="left"
+        overlayOpacity={0.5}
+      >
+        <p className="uppercase tracking-[0.25em] text-xs text-white/60">
+          Sierra Foothills, Nevada County
+        </p>
+        <h2 className="text-4xl md:text-6xl font-bold mt-2">
+          A Legacy Cultivation Story
+        </h2>
+        <p className="mt-4 text-lg text-white/85 max-w-xl">
+          Built on a generation of work in the foothills — light dep timing,
+          batch-by-batch trim &amp; cure, no two harvests treated the same.
+        </p>
+      </VideoScene>
+
+      {/* Slow contemplative still-image scroll. Starts ~5 viewport-heights in
+          (hero + StrainUpdates + 3 VideoScenes) so it doesn't crash into the
+          video sections. The other 2 backdrops (01-hybrid, 04-jars) live on
+          the /about gallery to avoid stuffing the homepage. */}
+      <ParallaxBackdrops
+        startOffset={5}
+        images={[
+          { src: "/assets/backdrops/02-hoop.jpg", caption: "Outdoor Hoop Dreams" },
+          { src: "/assets/backdrops/03-cultivation.jpg", caption: "Cultivation" },
+          { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
+        ]}
+      />
 
       <section className="relative z-10 min-h-screen flex flex-col justify-center p-8 md:p-16">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto reveal-on-scroll">
           <h2 className="text-4xl md:text-6xl font-bold text-center mb-12">
             Frequently Asked Questions
           </h2>
@@ -84,9 +147,30 @@ export default function Home() {
       </section>
 
       <footer className="relative z-10 p-8 md:p-16 text-sm text-white/50">
-        © Buck Mountain Cannabis · Nevada County, California ·{" "}
-        <a href="/products" className="underline hover:text-white">Products</a> ·{" "}
-        <a href="/blog" className="underline hover:text-white">Blog</a>
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-3">
+          <span>© Buck Mountain Cannabis · Nevada County, California</span>
+          <a href="/strains" className="underline hover:text-white">Strains</a>
+          <a href="/store" className="underline hover:text-white">Store</a>
+          <a href="/blog" className="underline hover:text-white">Blog</a>
+          <a href="/loyalty" className="underline hover:text-white">Loyalty</a>
+          <a href="/wholesale" className="underline hover:text-white">Wholesale</a>
+          <a href="/coa" className="underline hover:text-white">COA</a>
+          <a href="/about" className="underline hover:text-white">About</a>
+          <a href="/contact" className="underline hover:text-white">Contact</a>
+          <a href="/privacy" className="underline hover:text-white">Privacy</a>
+          <a href="/terms" className="underline hover:text-white">Terms</a>
+          <a
+            href="https://www.instagram.com/buckmountaincannabis/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-white"
+          >
+            @buckmountaincannabis
+          </a>
+        </div>
+        <p className="max-w-6xl mx-auto mt-4 text-xs text-white/30 italic">
+          Always grinding for the highest quality. Treating every batch like it&rsquo;s our last.
+        </p>
       </footer>
     </main>
   );

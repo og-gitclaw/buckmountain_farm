@@ -4,7 +4,9 @@
   --bg: #0a0a0a;
   --fg: #fafafa;
   --muted: #888;
-  --accent: #c9b582;
+  --accent: #c9a24a;        /* gold from the legacy logo */
+  --accent-deep: #8a6f2a;
+  --frame-purple: #5b3a8a;  /* purple triangle in the logo */
 }
 
 @theme inline {
@@ -21,8 +23,54 @@ body {
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* iOS notch + Android cutout — give body a baseline safe-area pad so
+   content never gets clipped behind the camera island. The fixed nav
+   adds its own safe-area-inset-top. */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------------------------------------------------------------
+   2026 scroll-driven reveal — uses scroll-driven animations
+   spec (animation-timeline: view()). Lands in WebKit Interop 2026.
+   Falls back to "always visible" in browsers without support,
+   which means no janky JS observers needed.
+   --------------------------------------------------------------- */
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 30%;
+  }
+}
+
+@keyframes reveal-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* View Transitions API — smooth crossfade between routes.
+   Browsers without support get an instant swap (no JS shim). */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 320ms;
+}
+
+/* ---------------------------------------------------------------
+   Reduced motion — disable parallax + scroll-driven anims,
+   collapse transitions to instant.
+   --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -30,4 +78,23 @@ body {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+  .reveal-on-scroll {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Snappy section paging — opt-in per page by adding `snap-page` to a
+   container. Lets us stop using JS scroll math for "every section is a
+   full screen". */
+.snap-page {
+  scroll-snap-type: y mandatory;
+}
+.snap-page > * {
+  scroll-snap-align: start;
+}
+
+/* Tap highlight cleanup for mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
 }

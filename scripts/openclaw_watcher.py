@@ -56,6 +56,14 @@ HOSTNAME = socket.gethostname()
 # Buckets we always treat as Buck Mountain.
 TRUSTED_BUCKETS = {"buckmountain"}
 
+# The QR-sheets bucket has its own pipeline: sheet images + .txt token lists
+# from the Photoshop team. Files here POST to /api/admin/qr-sheets instead
+# of /api/admin/assets. See handoff/QR_STICKER_WORKFLOW.md.
+QR_SHEETS_BUCKET = "qr-sheets"
+
+# If BUCKMOUNTAIN_QR_SHEETS_URL isn't set, derive it from DASHBOARD_URL.
+QR_SHEETS_URL_OVERRIDE = os.environ.get("BUCKMOUNTAIN_QR_SHEETS_URL", "").strip()
+
 # Heuristic regex for filenames in other buckets that look like Buck Mountain content.
 # Conservative — false-positives surface in /admin/assets as "candidate", not auto-approved.
 STRAIN_NAMES = [
@@ -224,6 +232,126 @@ def post_to_dashboard(rec: dict) -> tuple[bool, str]:
         return False, f"exception:{type(e).__name__}:{e}"
 
 
+# ---------- QR sheet pipeline (Photoshop -> openclaw -> backend) ----------
+
+QR_SHEET_NAME_RE = re.compile(r"^(?P<code>[A-Za-z0-9_\-]+)_sheet\.(?:png|jpg|jpeg|pdf)$", re.I)
+QR_TOKEN_LIST_RE = re.compile(r"^(?P<code>[A-Za-z0-9_\-]+)_tokens\.txt$", re.I)
+
+
+def derive_qr_sheets_url() -> str:
+    if QR_SHEETS_URL_OVERRIDE:
+        return QR_SHEETS_URL_OVERRIDE
+    if not DASHBOARD_URL:
+        return ""
+    # Same host, swap path tail. e.g. .../api/admin/assets -> .../api/admin/qr-sheets
+    if DASHBOARD_URL.endswith("/api/admin/assets"):
+        return DASHBOARD_URL[: -len("/api/admin/assets")] + "/api/admin/qr-sheets"
+    return ""
+
+
+def read_tokens_file(path: Path) -> list[str]:
+    out: list[str] = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                # Allow CSV-ish or one-per-line.
+                for tok in re.split(r"[\s,]+", line):
+                    tok = tok.strip()
+                    if 6 <= len(tok) <= 32:
+                        out.append(tok)
+    except Exception as e:
+        log(f"ERR read-tokens {path}: {e}")
+    return out
+
+
+def post_qr_sheet(sheet_code: str, sheet_asset_id: str | None, tokens: list[str], notes: str | None) -> tuple[bool, str]:
+    url = derive_qr_sheets_url()
+    if not url:
+        return False, "no-qr-sheets-url"
+    payload = {
+        "schema": "buckmountain-farm/qr-sheet/v1",
+        "sheet_code": sheet_code,
+        "asset_id": sheet_asset_id,
+        "printer": "photoshop-team",
+        "generated_at_iso": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tokens": tokens,
+        "notes": notes,
+    }
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", f"buckmountain-farm-watcher/{WATCHER_VERSION}")
+        if DASHBOARD_TOKEN:
+            req.add_header("Authorization", f"Bearer {DASHBOARD_TOKEN}")
+        if DASHBOARD_VERCEL_BYPASS:
+            req.add_header("x-vercel-protection-bypass", DASHBOARD_VERCEL_BYPASS)
+            req.add_header("x-vercel-set-bypass-cookie", "false")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return 200 <= resp.status < 300, f"http-{resp.status}"
+    except urllib.error.HTTPError as e:
+        return False, f"http-{e.code}"
+    except urllib.error.URLError as e:
+        return False, f"url-error:{e.reason}"
+    except Exception as e:
+        return False, f"exception:{type(e).__name__}:{e}"
+
+
+def scan_qr_sheets(seen: dict) -> int:
+    """Pair sheet image + tokens file by sheet_code; POST and mark both seen."""
+    bucket_dir = INGEST_ROOT / QR_SHEETS_BUCKET
+    if not bucket_dir.is_dir():
+        return 0
+    sheets: dict[str, dict] = {}
+    for f in bucket_dir.rglob("*"):
+        if not f.is_file() or f.name.startswith("."):
+            continue
+        m_sheet = QR_SHEET_NAME_RE.match(f.name)
+        m_tokens = QR_TOKEN_LIST_RE.match(f.name)
+        if m_sheet:
+            sheets.setdefault(m_sheet.group("code"), {})["sheet"] = f
+        elif m_tokens:
+            sheets.setdefault(m_tokens.group("code"), {})["tokens"] = f
+    pushed = 0
+    for code, parts in sheets.items():
+        tokens_path = parts.get("tokens")
+        sheet_path = parts.get("sheet")
+        if not tokens_path:
+            # Photoshop dropped just the image — wait for the .txt to land.
+            # (QR decode from image w/o pyzbar would need an external dep; we
+            # keep stdlib-only and defer to the explicit token list.)
+            continue
+        try:
+            tokens_sha = sha256_of(tokens_path)
+        except Exception as e:
+            log(f"ERR qr-sheet hash {tokens_path}: {e}")
+            continue
+        marker = f"qr-sheet:{code}:{tokens_sha[:12]}"
+        if marker in seen:
+            continue
+        tokens = read_tokens_file(tokens_path)
+        if not tokens:
+            log(f"WARN qr-sheet {code}: empty tokens file at {tokens_path}")
+            continue
+        ok, info = post_qr_sheet(
+            sheet_code=code,
+            sheet_asset_id=sha256_of(sheet_path)[:16] if sheet_path else None,
+            tokens=tokens,
+            notes=None,
+        )
+        log(
+            f"QR-SHEET code={code} tokens={len(tokens)} sheet={'yes' if sheet_path else 'NO'} "
+            f"-> {'posted' if ok else 'retry'} ({info})"
+        )
+        if ok:
+            seen[marker] = "1"
+            pushed += 1
+    return pushed
+
+
 # ---------- scan + process ----------
 
 def iter_candidate_files() -> list[tuple[Path, str, str]]:
@@ -240,6 +368,9 @@ def iter_candidate_files() -> list[tuple[Path, str, str]]:
         if bucket_dir.name.startswith("."):
             continue
         bucket = bucket_dir.name.lower()
+        # QR sheets have their own pipeline (scan_qr_sheets) — skip here.
+        if bucket == QR_SHEETS_BUCKET:
+            continue
         trusted = bucket in TRUSTED_BUCKETS
         for f in bucket_dir.rglob("*"):
             if not f.is_file():
@@ -375,8 +506,11 @@ def cycle() -> None:
     if added or seen_before == 0:
         save_seen(seen)
     fixed = retry_pending(seen)
-    if added or fixed:
-        log(f"CYCLE added={added} retried-fixed={fixed} total-known={len(seen)}")
+    qr_pushed = scan_qr_sheets(seen)
+    if qr_pushed:
+        save_seen(seen)
+    if added or fixed or qr_pushed:
+        log(f"CYCLE added={added} retried-fixed={fixed} qr-sheets={qr_pushed} total-known={len(seen)}")
 
 
 def main() -> int:

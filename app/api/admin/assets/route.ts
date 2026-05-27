@@ -1,18 +1,17 @@
 /**
  * POST /api/admin/assets
  *
- * Receives asset records from the openclaw media watcher
- * (scripts/openclaw_watcher.py). One record per file.
+ * Receives asset records from the openclaw media watcher.
+ * One record per file. Upsert by sha256 (idempotent).
  *
- * Auth: Bearer token. The watcher sets BUCKMOUNTAIN_DASHBOARD_TOKEN; here
- * we compare against process.env.ADMIN_ASSET_INGEST_TOKEN.
+ * Auth: Bearer ADMIN_ASSET_INGEST_TOKEN.
  *
- * Persistence: TODO P2. For now we just log + acknowledge so the watcher
- * stops queuing. Once the Neon schema lands (db/schema.sql), this endpoint
- * upserts into `assets` by sha256 (idempotent).
+ * Persistence: upserts into `assets` by sha256. If the DB isn't wired
+ * (preview deploys), we still 202 so the watcher doesn't queue forever.
  */
 
 import { NextResponse } from "next/server";
+import { dbConfigured, getSql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -63,8 +62,7 @@ export async function POST(req: Request) {
       { status: 503 },
     );
   }
-  const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${expected}`) {
+  if (req.headers.get("authorization") !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -74,31 +72,53 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "invalid-json" }, { status: 400 });
   }
-
   if (!isValidRecord(body)) {
     return NextResponse.json({ error: "invalid-record-shape" }, { status: 422 });
   }
 
-  // TODO(P2): upsert into Neon `assets` table by sha256.
-  // TODO(P2): if !blob_url, fetch the file from openclaw via Tailscale and stage to Vercel Blob.
-  console.log("[assets:ingest]", {
-    id: body.id,
-    sha256: body.sha256,
-    bucket: body.source.bucket,
-    route: body.source.route,
-    kind: body.kind,
-    tags: body.tags,
-    name: body.file.name,
-    size: body.file.size_bytes,
-  });
+  if (!dbConfigured()) {
+    return NextResponse.json(
+      {
+        ok: true,
+        id: body.id,
+        received_at: new Date().toISOString(),
+        missing: { db_row: true },
+        stub: "db-not-configured",
+      },
+      { status: 202 },
+    );
+  }
+
+  const sql = getSql();
+  const stored = (await sql`
+    INSERT INTO assets (
+      id, sha256, kind, bucket, route, file_name, file_ext,
+      size_bytes, mtime, tags, source_host, source_path
+    )
+    VALUES (
+      ${body.id}, ${body.sha256}, ${body.kind}, ${body.source.bucket},
+      ${body.source.route}, ${body.file.name}, ${body.file.ext},
+      ${body.file.size_bytes}, ${body.file.mtime_iso}, ${body.tags},
+      ${body.source.host}, ${body.source.abs_path}
+    )
+    ON CONFLICT (sha256) DO UPDATE SET
+      tags        = EXCLUDED.tags,
+      file_name   = EXCLUDED.file_name,
+      source_path = EXCLUDED.source_path,
+      mtime       = EXCLUDED.mtime
+    RETURNING id, review_status, blob_url
+  `) as { id: string; review_status: string; blob_url: string | null }[];
 
   return NextResponse.json(
     {
       ok: true,
-      id: body.id,
+      id: stored[0].id,
       received_at: new Date().toISOString(),
-      // Hints back to the watcher about what we still need.
-      missing: { blob_url: true, thumbnail: true, db_row: true },
+      review_status: stored[0].review_status,
+      missing: {
+        blob_url: !stored[0].blob_url,
+        thumbnail: !stored[0].blob_url,
+      },
     },
     { status: 202 },
   );
@@ -106,7 +126,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
   return NextResponse.json(
-    { service: "buckmountain.farm/api/admin/assets", method: "POST", schema: "buckmountain-farm/asset/v1" },
+    {
+      service: "buckmountain.farm/api/admin/assets",
+      method: "POST",
+      schema: "buckmountain-farm/asset/v1",
+    },
     { status: 200 },
   );
 }
