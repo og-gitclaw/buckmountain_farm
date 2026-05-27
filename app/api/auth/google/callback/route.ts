@@ -20,6 +20,11 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { dbConfigured, getSql } from "@/lib/db";
 import { sendTransactional } from "@/lib/email";
+import {
+  SESSION_COOKIE_MAX_AGE,
+  SESSION_COOKIE_NAME,
+  signSession,
+} from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -57,6 +62,13 @@ export async function GET(req: Request) {
   if (!clientId || !clientSecret) {
     return NextResponse.json(
       { error: "google-oauth-not-configured" },
+      { status: 503 },
+    );
+  }
+
+  if (!process.env.SESSION_SECRET) {
+    return NextResponse.json(
+      { error: "session-secret-not-configured" },
       { status: 503 },
     );
   }
@@ -161,20 +173,17 @@ export async function GET(req: Request) {
       .find((s) => s.startsWith("oauth_return_to="))
       ?.split("=")[1] ?? "/agent";
 
-  // Session cookie (placeholder until JWT signing wired)
-  const sessionPayload = Buffer.from(
-    JSON.stringify({ sub: user.sub, email: user.email, iat: Date.now() }),
-  ).toString("base64url");
+  const sessionPayload = signSession({ sub: user.sub, email: user.email });
 
   const res = NextResponse.redirect(
     `${url.origin}/auth/consent?return_to=${encodeURIComponent(returnTo)}`,
     302,
   );
-  res.cookies.set("bm_session", sessionPayload, {
+  res.cookies.set(SESSION_COOKIE_NAME, sessionPayload, {
     httpOnly: true,
     sameSite: "lax",
     secure: true,
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_COOKIE_MAX_AGE,
     path: "/",
   });
   res.cookies.delete("oauth_state");
