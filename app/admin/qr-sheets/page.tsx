@@ -8,7 +8,8 @@
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Row = {
   id: number;
@@ -28,22 +29,26 @@ async function loadRows(): Promise<{ rows: Row[]; stub: boolean }> {
       ],
     };
   }
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT
-      s.id,
-      s.sheet_code,
-      s.printer,
-      s.token_count,
-      (SELECT COUNT(*)::int FROM qr_scans sc
-        JOIN qr_tokens t ON t.token = sc.token
-        WHERE t.sheet_id = s.id) AS scanned_count,
-      s.ingested_at
-    FROM qr_sheets s
-    ORDER BY s.ingested_at DESC
-    LIMIT 100
-  `) as Row[];
-  return { rows, stub: false };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT
+        s.id,
+        s.sheet_code,
+        s.printer,
+        s.token_count,
+        (SELECT COUNT(*)::int FROM qr_scans sc
+          JOIN qr_tokens t ON t.token = sc.token
+          WHERE t.sheet_id = s.id) AS scanned_count,
+        s.ingested_at
+      FROM qr_sheets s
+      ORDER BY s.ingested_at DESC
+      LIMIT 100
+    `) as Row[];
+    return { rows, stub: false };
+  } catch {
+    return { rows: [], stub: true };
+  }
 }
 
 export default async function QrSheets() {

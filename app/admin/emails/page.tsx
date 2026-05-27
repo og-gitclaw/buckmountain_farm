@@ -9,7 +9,12 @@
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 
-export const revalidate = 15;
+// Admin pages are per-user, behind auth, and need fresh data. Forcing
+// dynamic also decouples deploys from "schema migration must be applied
+// first" — otherwise a build-time prerender against a missing table
+// fails the whole deploy. (See PR #1 deploy failures pre-ce4538b.)
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Row = {
   id: number;
@@ -27,15 +32,21 @@ type Row = {
 
 async function loadRows(): Promise<{ rows: Row[]; stub: boolean }> {
   if (!dbConfigured()) return { rows: [], stub: true };
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, template, recipient, subject, status, error,
-           ses_message_id, queued_at, sent_at, related_kind, related_id
-      FROM emails_outbound
-     ORDER BY queued_at DESC
-     LIMIT 200
-  `) as Row[];
-  return { rows, stub: false };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT id, template, recipient, subject, status, error,
+             ses_message_id, queued_at, sent_at, related_kind, related_id
+        FROM emails_outbound
+       ORDER BY queued_at DESC
+       LIMIT 200
+    `) as Row[];
+    return { rows, stub: false };
+  } catch {
+    // Schema not migrated yet (or transient DB issue). Render empty
+    // instead of throwing — never break the build/render on a DB hiccup.
+    return { rows: [], stub: true };
+  }
 }
 
 const STATUS_TINT: Record<string, string> = {

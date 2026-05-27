@@ -8,7 +8,8 @@
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Row = {
   id: string;
@@ -19,25 +20,26 @@ type Row = {
   last_order_at: string | null;
 };
 
+const STUBS: Row[] = [
+  { id: "stub-1", name: "Example Dispensary A", city: "Oakland", state: "CA", status: "active", last_order_at: "2026-05-12" },
+  { id: "stub-2", name: "Example Dispensary B", city: "Sacramento", state: "CA", status: "lapsed", last_order_at: "2026-02-04" },
+  { id: "stub-3", name: "Example Dispensary C", city: "Eureka", state: "CA", status: "lead", last_order_at: null },
+];
+
 async function loadRows(): Promise<{ rows: Row[]; stub: boolean }> {
-  if (!dbConfigured()) {
-    return {
-      stub: true,
-      rows: [
-        { id: "stub-1", name: "Example Dispensary A", city: "Oakland", state: "CA", status: "active", last_order_at: "2026-05-12" },
-        { id: "stub-2", name: "Example Dispensary B", city: "Sacramento", state: "CA", status: "lapsed", last_order_at: "2026-02-04" },
-        { id: "stub-3", name: "Example Dispensary C", city: "Eureka", state: "CA", status: "lead", last_order_at: null },
-      ],
-    };
+  if (!dbConfigured()) return { rows: STUBS, stub: true };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT id, name, city, state, status, last_order_at
+        FROM dispensaries
+       ORDER BY last_order_at DESC NULLS LAST, name
+       LIMIT 200
+    `) as Row[];
+    return { rows, stub: false };
+  } catch {
+    return { rows: STUBS, stub: true };
   }
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, name, city, state, status, last_order_at
-      FROM dispensaries
-     ORDER BY last_order_at DESC NULLS LAST, name
-     LIMIT 200
-  `) as Row[];
-  return { rows, stub: false };
 }
 
 export default async function DispensariesList() {

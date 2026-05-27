@@ -9,7 +9,8 @@
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Row = {
   id: string;
@@ -26,15 +27,19 @@ type Row = {
 
 async function loadAssets(): Promise<{ rows: Row[]; stub: boolean }> {
   if (!dbConfigured()) return { rows: [], stub: true };
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT id, bucket, route, kind, tags, file_name, size_bytes,
-           review_status, blob_url, ingested_at
-      FROM assets
-     ORDER BY ingested_at DESC
-     LIMIT 100
-  `) as Row[];
-  return { rows, stub: false };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT id, bucket, route, kind, tags, file_name, size_bytes,
+             review_status, blob_url, ingested_at
+        FROM assets
+       ORDER BY ingested_at DESC
+       LIMIT 100
+    `) as Row[];
+    return { rows, stub: false };
+  } catch {
+    return { rows: [], stub: true };
+  }
 }
 
 function humanSize(bytes: number): string {

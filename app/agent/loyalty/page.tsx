@@ -10,7 +10,8 @@
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Row = {
   geo_city: string | null;
@@ -19,18 +20,16 @@ type Row = {
   top_strain: string | null;
 };
 
+const STUBS: Row[] = [
+  { geo_city: "Oakland",    geo_country: "US", scans_7d: 12, top_strain: "Permanent OG" },
+  { geo_city: "Sacramento", geo_country: "US", scans_7d: 4,  top_strain: "Gelato 41" },
+];
+
 async function loadRows(): Promise<{ rows: Row[]; stub: boolean }> {
-  if (!dbConfigured()) {
-    return {
-      stub: true,
-      rows: [
-        { geo_city: "Oakland",    geo_country: "US", scans_7d: 12, top_strain: "Permanent OG" },
-        { geo_city: "Sacramento", geo_country: "US", scans_7d: 4,  top_strain: "Gelato 41" },
-      ],
-    };
-  }
-  const sql = getSql();
-  const rows = (await sql`
+  if (!dbConfigured()) return { rows: STUBS, stub: true };
+  try {
+    const sql = getSql();
+    const rows = (await sql`
     SELECT
       s.geo_city,
       s.geo_country,
@@ -53,7 +52,10 @@ async function loadRows(): Promise<{ rows: Row[]; stub: boolean }> {
     ORDER BY scans_7d DESC
     LIMIT 50
   `) as Row[];
-  return { rows, stub: false };
+    return { rows, stub: false };
+  } catch {
+    return { rows: STUBS, stub: true };
+  }
 }
 
 export default async function AgentLoyalty() {
