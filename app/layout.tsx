@@ -17,7 +17,10 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  icons: { icon: "/brand/logo.svg" },
+  // app/icon.svg (auto-discovered by Next App Router) handles the
+  // browser-tab favicon. This metadata.icons entry sets the apple-touch /
+  // social-card fallback to the real PNG mark.
+  icons: { icon: "/icon.svg", apple: "/brand/logo.png" },
   // Search-engine lockdown until Randy approves public launch.
   // See handoff/PROD_PROMOTE.md for the toggle ceremony.
   robots: {

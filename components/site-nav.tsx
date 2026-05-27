@@ -73,15 +73,25 @@ export function SiteNav() {
       }`}
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <nav className="mx-auto flex items-center justify-between gap-4 px-4 md:px-8 py-3 backdrop-blur-md bg-black/40 border-b border-white/5">
-        <Link href="/" aria-label="Buck Mountain Cannabis — home" className="flex items-center">
+      <nav className="mx-auto flex items-center justify-between gap-4 px-4 md:px-8 py-2 md:py-3 backdrop-blur-md bg-black/45 border-b border-white/5">
+        <Link
+          href="/"
+          aria-label="Buck Mountain Cannabis — home"
+          className="flex items-center -my-2 md:-my-3"
+        >
+          {/* Real brand mark (gold antlered deer + purple triangle + BUCK MTN
+              wordmark + lavender halo). Source: Buck Mtn New Logo 8.24.23.
+              Bumped to h-20 (mobile) / h-28 (desktop) per the "decent sized
+              so it doesn't scale down" directive. Negative my- on the Link
+              lets the logo extend slightly past the nav padding so the halo
+              breathes. */}
           <Image
-            src="/brand/logo.svg"
+            src="/brand/logo.png"
             alt=""
-            width={56}
-            height={42}
+            width={480}
+            height={480}
             priority
-            className="h-10 w-auto md:h-12"
+            className="h-20 w-auto md:h-28"
           />
         </Link>
 
