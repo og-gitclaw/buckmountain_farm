@@ -55,7 +55,9 @@ export function EffectBars({ scores }: { scores: EffectScores }) {
   );
 }
 
-/** Chip variant — fits in tight card layouts. Top 3 effects, color-tinted. */
+/** Chip variant — fits in tight card layouts. Top 3 effects, color-tinted.
+ *  Compact size (10px type, low padding) so they read as quiet metadata,
+ *  not a row of buttons. */
 export function EffectTiles({ scores }: { scores?: EffectScores }) {
   if (!scores) return null;
   const top = (Object.entries(scores) as [keyof EffectScores, number][])
@@ -72,13 +74,13 @@ export function EffectTiles({ scores }: { scores?: EffectScores }) {
     uplift:   "border-yellow-500/40 text-yellow-200",
   };
   return (
-    <ul className="flex flex-wrap gap-1.5">
+    <ul className="flex flex-wrap gap-1">
       {top.map(([k, v]) => (
         <li
           key={k}
-          className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${COLOR[k]} bg-white/[0.02]`}
+          className={`text-[10px] tracking-wider px-1.5 py-[2px] rounded-md border ${COLOR[k]} bg-black/35 backdrop-blur-sm whitespace-nowrap`}
         >
-          {LABELS[k]} · {v}
+          {LABELS[k]} <span className="opacity-70">{v}</span>
         </li>
       ))}
     </ul>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SiteNav } from "@/components/site-nav";
 import { AgeGate } from "@/components/age-gate";
+import { GrainOverlay } from "@/components/grain-overlay";
 
 export const metadata: Metadata = {
   title: "Buck Mountain Cannabis — Sierra Foothills",
@@ -16,7 +17,10 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  icons: { icon: "/brand/logo.svg" },
+  // app/icon.svg (auto-discovered by Next App Router) handles the
+  // browser-tab favicon. This metadata.icons entry sets the apple-touch /
+  // social-card fallback to the real PNG mark.
+  icons: { icon: "/icon.svg", apple: "/brand/logo.png" },
   // Search-engine lockdown until Randy approves public launch.
   // See handoff/PROD_PROMOTE.md for the toggle ceremony.
   robots: {
@@ -40,6 +44,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Page-wide film grain — extremely subtle (6% opacity). Sits
+            above content via z-[1] but pointer-events:none so it never
+            blocks clicks. Animated 0.8s noise shift for that lived-in feel. */}
+        <GrainOverlay opacity={0.06} blendMode="overlay" />
         <SiteNav />
         {children}
         <AgeGate />
