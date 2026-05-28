@@ -24,6 +24,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { DragComparison } from "@/components/drag-comparison";
+import { SplitScrollCompare } from "@/components/split-scroll-compare";
 import { EffectTiles } from "@/components/effect-bars";
 import { LineageTree } from "@/components/lineage-tree";
 import { StrainPlaceholder } from "@/components/strain-placeholder";
@@ -683,6 +684,265 @@ export default function BeforeAfterPage() {
         }
       />
 
+      {/* ====================== SPLIT-SCROLL COMPARE ====================== */}
+      <section className="px-6 md:px-16 max-w-6xl mx-auto py-16 md:py-24 border-t border-white/10">
+        <p className="uppercase tracking-[0.25em] text-xs text-amber-200/70">
+          Scroll the proof
+        </p>
+        <h2 className="text-3xl md:text-5xl font-bold mt-2 mb-3">
+          Then and now, scrolled together.
+        </h2>
+        <p className="text-white/70 max-w-2xl mb-8">
+          Left: the legacy <code>buckmountaincannabis.com</code> reconstructed
+          from the ripped assets — one looping hero, the 4-up greenhouse
+          gallery, a Blog link, an FAQ. Right: the live{" "}
+          <code>buckmountain.farm</code> homepage. Both scroll in tandem.
+        </p>
+      </section>
+      <SplitScrollCompare
+        legacy={<LegacyMockupScroll />}
+        modernSrc="/"
+        lengthInVh={5}
+      />
+
+      {/* ====================== BEAT 11 · WHY .FARM ====================== */}
+      <Beat
+        number="11"
+        title="Why .farm beats .com"
+        subtitle="The domain pick is a CMO decision, not a registration"
+        problem={
+          <>
+            <code>buckmountaincannabis.com</code> couples the brand
+            permanently to one product. The day the cannabis market
+            consolidates, the day hemp pulls ahead of THC in a state, the
+            day a non-psychoactive line ships — the domain becomes a
+            liability. You can&rsquo;t pivot a URL with{" "}
+            <em>cannabis</em> baked into it without burning the SEO
+            equity you spent years building. The .com locks the brand into
+            the smallest possible identity: a product.
+          </>
+        }
+        insight={
+          <>
+            <code>.farm</code> is the identity, not the product. Buck
+            Mountain <em>is</em> a farm — that&rsquo;s the actual fact.
+            The TLD reflects ownership of the land, the operation, the
+            cultivation method, the place. Cannabis is one thing the
+            farm grows; tomorrow it could grow hemp, CBD-leaning genetics,
+            mushrooms (cf. the OG Life specialty line), or non-psychoactive
+            wellness SKUs. A fractional CTO + CMO doesn&rsquo;t pick a
+            domain — they pick a moat that scales with every market the
+            brand might enter.
+          </>
+        }
+        build={
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+              <h3 className="font-bold text-lg mb-3 text-rose-200">
+                buckmountaincannabis.com
+              </h3>
+              <ul className="space-y-2 text-sm text-white/75">
+                <FxIssue>Brand fragment <strong>locked to one regulated category</strong></FxIssue>
+                <FxIssue>SEO equity dies if you ever drop "cannabis"</FxIssue>
+                <FxIssue>Can&rsquo;t cross-sell hemp / CBD / mushroom under same URL</FxIssue>
+                <FxIssue>Cannabis-platform delisting risk = total domain risk</FxIssue>
+                <FxIssue>Reads as a category-page slug, not a destination</FxIssue>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.04] p-6">
+              <h3 className="font-bold text-lg mb-3 text-amber-200">
+                buckmountain.farm
+              </h3>
+              <ul className="space-y-2 text-sm text-white/85">
+                <FxWin>Identity-first: <strong>a farm that grows things</strong></FxWin>
+                <FxWin>Free to add hemp, CBD, mushroom lines under same roof</FxWin>
+                <FxWin>SEO compounds across <em>farm</em>, <em>cultivation</em>, <em>cannabis</em>, <em>hemp</em>, <em>Sierra Foothills</em></FxWin>
+                <FxWin>.farm TLD signals authentic agricultural operation, not a retail brand</FxWin>
+                <FxWin>Survives any one product category being deplatformed</FxWin>
+              </ul>
+            </div>
+          </div>
+        }
+        outcome={
+          <ul className="space-y-2">
+            <Bullet>Brand owns an <strong>identity</strong> (the farm), not a <strong>category</strong> (cannabis)</Bullet>
+            <Bullet>Future pivot to hemp/CBD is a content-shelf addition, not a domain migration</Bullet>
+            <Bullet>SEO surface area widens across agriculture + place + product terms</Bullet>
+            <Bullet>Always keep <code>buckmountaincannabis.com</code> registered + 301-redirected so legacy backlinks transfer equity to the new identity</Bullet>
+          </ul>
+        }
+      />
+
+      {/* ====================== BEAT 12 · COMPLIANCE AUTONOMY ====================== */}
+      <Beat
+        number="12"
+        title="Autonomous compliance"
+        subtitle="TCPA + CCPA + state cannabis rules change mid-year. The agent keeps up so the brand doesn&rsquo;t have to."
+        problem={
+          <>
+            Cannabis marketing compliance moves quarterly. TCPA tweaks SMS
+            disclosure requirements. CCPA / CPRA shifts opt-out
+            mechanics. California DCC updates ad-targeting rules. The
+            FCC, FTC, and state AGs each ship enforcement actions that
+            change what a "double-opt-in" or "clear consent" actually
+            means. Manual response = monthly legal reviews and
+            inconsistent enforcement across the marketing stack (Alpine
+            IQ, SES, Web Push, the consent page itself). One stale
+            disclosure on a single channel = an FCC class-action target.
+          </>
+        }
+        insight={
+          <>
+            Build a watcher that <strong>polls regulatory feeds + diffs
+            against last-known state + applies updates atomically across
+            every channel + alerts admins on any divergence</strong>. The
+            same pattern that already runs <code>scripts/openclaw_watcher.py</code>{" "}
+            for media assets — extended to compliance. The compliance
+            agent runs on openclaw 24/7, owns the canonical{" "}
+            <code>consents</code> schema shape + the <code>/privacy</code>{" "}
+            + <code>/terms</code> bodies + the SMS disclosure template +
+            the Alpine IQ audience tags. When a rule changes, every
+            surface updates within hours, not months.
+          </>
+        }
+        build={
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 text-sm">
+            <ComplianceCard
+              source="TCPA · FCC"
+              detects="SMS disclosure language updates · double-opt-in rule changes"
+              action="re-renders Alpine IQ welcome template · updates /api/sms/subscribe consent_text validation"
+            />
+            <ComplianceCard
+              source="CCPA · CPRA"
+              detects="Opt-out mechanism additions · 'Do Not Sell' UI requirements"
+              action="updates consents jsonb schema · regenerates /privacy body · adds new opt-out flag to /auth/consent"
+            />
+            <ComplianceCard
+              source="CA DCC · BCC"
+              detects="Cannabis ad-targeting rules · 21+ verification standards · packaging COA requirements"
+              action="updates AgeGate localStorage TTL · adjusts /coa lookup validation · alerts admin on enforcement bulletin"
+            />
+            <ComplianceCard
+              source="Alpine IQ config"
+              detects="Audience-tag drift · webhook secret rotation · STOP-keyword automation changes"
+              action="re-syncs audience definitions · rotates webhook secret in Vercel env via API · validates STOP/HELP coverage"
+            />
+            <ComplianceCard
+              source="SES reputation"
+              detects="Bounce rate > 5% · complaint rate > 0.1% · sandbox status changes"
+              action="auto-pauses marketing template fan-out · marks oglife_optins.consents.marketing_email = false on hard bounces · alerts admin"
+            />
+            <ComplianceCard
+              source="Vercel + Neon"
+              detects="Schema drift · failed cron runs · environment variable changes"
+              action="diffs deployed schema against db/schema.sql · alerts on drift · audits env-var rotation cadence"
+            />
+          </div>
+        }
+        outcome={
+          <ul className="space-y-2">
+            <Bullet>Compliance posture stays current without quarterly legal sprints</Bullet>
+            <Bullet>One canonical schema for <code>consents</code>; agent owns the migration when fields are added</Bullet>
+            <Bullet>Every change logged to <code>audit_log</code> with regulatory citation</Bullet>
+            <Bullet>Admin alert via <code>health-alert</code> SES template on any divergence the agent can&rsquo;t auto-resolve</Bullet>
+            <Bullet>Scaffold at <code>agents/compliance-watch/</code> in this repo; runs on openclaw via launchd</Bullet>
+          </ul>
+        }
+      />
+
+      {/* ====================== BEAT 13 · THE 4D DIMENSION ====================== */}
+      <Beat
+        number="13"
+        title="The 4D dimension"
+        subtitle="A website is 3D — content, code, data. The 4th dimension is time + autonomy."
+        problem={
+          <>
+            A modern brand site is three-dimensional: <em>what it shows</em>{" "}
+            (content), <em>what it runs</em> (code), <em>what it knows</em>{" "}
+            (data). Once deployed, it&rsquo;s static — every update
+            requires human touch. Drops happen, then someone manually
+            broadcasts. Dispensaries tag the brand on IG, then someone
+            manually adds the drop card. Push tokens go stale, then
+            someone manually cleans. Bounce rates spike, then someone
+            manually pauses. The brand <em>has</em> a site; it
+            doesn&rsquo;t <em>operate</em>.
+          </>
+        }
+        insight={
+          <>
+            The 4th dimension is <strong>time + autonomy</strong>. A
+            background agent running on openclaw 24/7 handles the
+            tireless operational work: ingests IG mentions into /drops,
+            fires order-lifecycle emails as Nabis status changes,
+            cleanses dead push subscriptions, refreshes Alpine IQ
+            audiences, applies compliance updates, retries failed sends,
+            rotates secrets, audits health. The site doesn&rsquo;t just{" "}
+            <em>exist</em> — it runs itself. Humans focus on strategy +
+            content; the agent handles the rest.
+          </>
+        }
+        build={
+          <div className="grid gap-3 md:grid-cols-2">
+            <AutonomousTask
+              title="IG mentions ingester"
+              cadence="hourly"
+              writes="current_drops"
+              freq="~5-10 new posts/week"
+            />
+            <AutonomousTask
+              title="Nabis order-status cron"
+              cadence="hourly"
+              writes="order_status_seen · emails_outbound"
+              freq="placed → shipped → delivered → review-request +3d"
+            />
+            <AutonomousTask
+              title="Push subscription cleanup"
+              cadence="per fan-out"
+              writes="push_subscriptions.is_active"
+              freq="auto-retires 404/410 on every broadcast"
+            />
+            <AutonomousTask
+              title="Alpine IQ STOP/HELP webhook"
+              cadence="real-time"
+              writes="sms_subscriptions.status"
+              freq="HMAC-verified, instant"
+            />
+            <AutonomousTask
+              title="Compliance watcher (Beat 12)"
+              cadence="daily"
+              writes="consents schema · /privacy + /terms · audit_log"
+              freq="any time a regulator publishes"
+            />
+            <AutonomousTask
+              title="SES reputation guard"
+              cadence="hourly"
+              writes="emails_outbound.status · oglife_optins.consents"
+              freq="hard-bounces flip marketing_email = false"
+            />
+            <AutonomousTask
+              title="Asset watcher"
+              cadence="30s poll"
+              writes="assets table"
+              freq="any new file in openclaw ingest folder"
+            />
+            <AutonomousTask
+              title="QR sheet pipeline"
+              cadence="30s poll"
+              writes="qr_sheets · qr_tokens"
+              freq="Photoshop drops sheets → openclaw decodes → backend persists"
+            />
+          </div>
+        }
+        outcome={
+          <ul className="space-y-2">
+            <Bullet>The brand <strong>operates</strong> 24/7 without manual ops touch</Bullet>
+            <Bullet>One agent surface (<code>agents/</code>) coordinates 8 autonomous tasks across compliance, marketing, fulfillment, ingest</Bullet>
+            <Bullet>Site &amp; agent are versioned together — every code change reaches the agent on next openclaw pull</Bullet>
+            <Bullet>Humans only intervene when the agent escalates via SES <code>health-alert</code> — every other state is self-resolving</Bullet>
+          </ul>
+        }
+      />
+
       {/* ====================== STACK SUMMARY ====================== */}
       <StackSummary />
 
@@ -1014,6 +1274,129 @@ function StackSummary() {
         <StackPillar label="Messaging" items={["AWS SES v2 (transactional)", "Alpine IQ (SMS marketing)", "Web Push (VAPID, auto-retire)", "IG Graph API (auto-ingest)"]} />
       </div>
     </section>
+  );
+}
+
+function FxIssue({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <span className="text-rose-300/80 select-none mt-0.5">✕</span>
+      <span>{children}</span>
+    </li>
+  );
+}
+function FxWin({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <span className="text-amber-300 select-none mt-0.5">✓</span>
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function ComplianceCard({
+  source,
+  detects,
+  action,
+}: {
+  source: string;
+  detects: string;
+  action: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-amber-200/70 mb-2">
+        {source}
+      </p>
+      <p className="text-xs text-white/80">
+        <span className="text-white/50">Detects: </span>
+        {detects}
+      </p>
+      <p className="text-xs text-white/80 mt-2">
+        <span className="text-white/50">Action: </span>
+        {action}
+      </p>
+    </div>
+  );
+}
+
+function AutonomousTask({
+  title,
+  cadence,
+  writes,
+  freq,
+}: {
+  title: string;
+  cadence: string;
+  writes: string;
+  freq: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-bold text-sm">{title}</h3>
+        <span className="text-[10px] uppercase tracking-wider text-amber-200/70">
+          {cadence}
+        </span>
+      </div>
+      <p className="text-xs text-white/70 mt-2">
+        <span className="text-white/45">writes</span>{" "}
+        <code className="text-amber-100/85">{writes}</code>
+      </p>
+      <p className="text-xs text-white/55 mt-1">{freq}</p>
+    </div>
+  );
+}
+
+/** Reconstructed legacy site preview built from the ripped assets.
+ *  Used only inside SplitScrollCompare — not a public surface. */
+function LegacyMockupScroll() {
+  return (
+    <div className="bg-black text-white">
+      {/* Legacy nav — small logo, single "Blog" link */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
+        <span className="text-xs font-serif text-amber-200/80">Buck Mtn</span>
+        <span className="text-xs text-white/70">Blog</span>
+      </div>
+      {/* Legacy hero — single autoplay video, no parallax */}
+      <div className="relative aspect-[16/10] bg-black">
+        <video
+          src="/assets/video/hero-a-establish.mp4"
+          muted
+          loop
+          playsInline
+          autoPlay
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+        />
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute bottom-6 left-6 right-6">
+          <h2 className="text-2xl font-bold">Buck Mountain Cannabis</h2>
+          <p className="mt-1 text-xs text-white/80">
+            A legacy cannabis brand in the Sierra foothills of Nevada County, Ca.
+          </p>
+        </div>
+      </div>
+      {/* Legacy 4-up greenhouse gallery */}
+      <div className="grid grid-cols-2 gap-px bg-white/5">
+        <img src="/assets/gallery/02-fans-and-rows.jpg" alt="" className="aspect-square object-cover" loading="lazy" />
+        <img src="/assets/gallery/01-greenhouse-close.jpg" alt="" className="aspect-square object-cover" loading="lazy" />
+        <img src="/assets/gallery/03-greenhouse-rows.jpg" alt="" className="aspect-square object-cover" loading="lazy" />
+        <img src="/assets/gallery/04-aerial-farm.jpg" alt="" className="aspect-square object-cover" loading="lazy" />
+      </div>
+      {/* Legacy FAQ — text only */}
+      <div className="p-6 space-y-3">
+        <h3 className="text-lg font-bold">FAQ</h3>
+        <p className="text-xs text-white/70">Where is Buck Mountain Cannabis located?</p>
+        <p className="text-xs text-white/70">How does Buck Mountain Cannabis grow their flower?</p>
+        <p className="text-xs text-white/70">Is Buck Mountain Cannabis organic?</p>
+        <p className="text-xs text-white/70">What is light dep cannabis?</p>
+      </div>
+      <div className="p-6 text-[10px] text-white/40 border-t border-white/5">
+        © Buck Mountain Cannabis · @buckmountaincannabis
+      </div>
+      {/* Padding so the column has scroll runway matching the synced parent. */}
+      <div style={{ height: "120vh" }} />
+    </div>
   );
 }
 

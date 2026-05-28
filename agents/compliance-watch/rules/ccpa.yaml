@@ -1,0 +1,15 @@
+# CCPA / CPRA — CA AG privacy regulations page
+id: ccpa
+source: California Attorney General — Privacy
+poll_cadence: 12h
+detect:
+  type: http_diff
+  url: https://oag.ca.gov/privacy/ccpa
+actions:
+  - kind: admin_alert
+    params:
+      severity: medium
+      cta: "Review CCPA/CPRA update. Check whether consents jsonb needs a new field (e.g. new 'Do Not Sell' mechanic) and whether /privacy body needs re-rendering."
+  - kind: audit_log
+    params:
+      kind: ccpa_change_detected
