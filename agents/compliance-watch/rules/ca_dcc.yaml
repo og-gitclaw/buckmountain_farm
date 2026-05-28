@@ -1,0 +1,17 @@
+# California Department of Cannabis Control — Advertising & Marketing
+# Watches the DCC's licensee bulletins for cannabis ad-targeting + COA
+# + 21+ verification rule changes.
+id: ca_dcc
+source: California Department of Cannabis Control
+poll_cadence: 12h
+detect:
+  type: http_diff
+  url: https://cannabis.ca.gov/laws-and-regulations/cannabis-laws-and-regulations/
+actions:
+  - kind: admin_alert
+    params:
+      severity: high
+      cta: "DCC update detected. Likely impact: AgeGate TTL, /coa Metrc validation regex, ad-targeting consent_text on /api/sms/subscribe."
+  - kind: audit_log
+    params:
+      kind: dcc_change_detected
