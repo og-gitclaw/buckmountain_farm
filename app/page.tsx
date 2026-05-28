@@ -93,7 +93,7 @@ export default async function Home() {
         src="/assets/video/hero-b-interior.mp4"
         poster="/assets/video/hero-b-interior-poster.jpg"
         lengthInVh={3.5}
-        overlayOpacity={0.42}
+        overlayOpacity={0.32}
       >
         <div className="reveal-stagger">
           <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
@@ -115,7 +115,7 @@ export default async function Home() {
         src="/assets/video/hero-c-flower.mp4"
         poster="/assets/video/hero-c-flower-poster.jpg"
         align="center"
-        overlayOpacity={0.5}
+        overlayOpacity={0.4}
       >
         <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
           Outdoor<br />Hoop Dreams
@@ -129,7 +129,7 @@ export default async function Home() {
         src="/assets/video/hero-d-foothills.mp4"
         poster="/assets/video/hero-d-foothills-poster.jpg"
         align="left"
-        overlayOpacity={0.55}
+        overlayOpacity={0.42}
       >
         <p className="uppercase tracking-[0.3em] text-xs text-white/60">
           Sierra Foothills, Nevada County
