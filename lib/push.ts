@@ -6,8 +6,12 @@
  * without throwing so callers can render preview deploys cleanly.
  *
  * 410/404 responses from the push service mean the subscription is
- * dead — we mark it inactive so the next fan-out skips it. (TODO P3:
- * implement once DB is wired — currently logs only.)
+ * dead — we mark it inactive so the next fan-out skips it.
+ *
+ * Transient failures (429 rate-limit, 5xx push-service hiccups, or a
+ * network error with no status) are retried with bounded exponential
+ * backoff, honoring a `Retry-After` header when the service sends one.
+ * Permanent failures (404/410, malformed sub) are never retried.
  */
 
 import webpush, { type PushSubscription } from "web-push";
@@ -20,6 +24,25 @@ type Payload = {
   image?: string;
   tag?: string;
 };
+
+// Status codes worth retrying. 0 = the request never got a response
+// (DNS/TLS/socket error) — also transient. 404/410 are deliberately
+// excluded: they mean the subscription is gone, so retrying is pointless.
+const TRANSIENT_STATUS = new Set([0, 429, 500, 502, 503, 504]);
+const MAX_DELIVERY_RETRIES = 2;
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Prefer the service's Retry-After (seconds) when present, capped so one
+// throttled endpoint can't stall the whole fan-out. Otherwise exponential
+// backoff: 500ms, 1s, 2s…
+function retryDelayMs(attempt: number, retryAfter?: string): number {
+  if (retryAfter) {
+    const secs = Number(retryAfter);
+    if (Number.isFinite(secs) && secs >= 0) return Math.min(secs * 1000, 10_000);
+  }
+  return Math.min(500 * 2 ** attempt, 4_000);
+}
 
 let configured = false;
 
@@ -42,12 +65,37 @@ export async function sendToOne(sub: PushSubscription, payload: Payload) {
     const res = await webpush.sendNotification(sub, JSON.stringify(payload));
     return { ok: true as const, statusCode: res.statusCode };
   } catch (err) {
-    const e = err as { statusCode?: number; message?: string };
+    const e = err as {
+      statusCode?: number;
+      message?: string;
+      headers?: Record<string, string>;
+    };
     return {
       ok: false as const,
       statusCode: e.statusCode ?? 0,
       message: e.message ?? "send-failed",
+      retryAfter: e.headers?.["retry-after"],
     };
+  }
+}
+
+/**
+ * sendToOne + bounded retry on transient failures. Returns the final
+ * attempt's result plus how many attempts it took.
+ */
+export async function sendWithRetry(
+  sub: PushSubscription,
+  payload: Payload,
+  maxRetries = MAX_DELIVERY_RETRIES,
+) {
+  let attempt = 0;
+  for (;;) {
+    const r = await sendToOne(sub, payload);
+    if (r.ok || "skipped" in r) return { ...r, attempts: attempt + 1 };
+    const transient = TRANSIENT_STATUS.has(r.statusCode);
+    if (!transient || attempt >= maxRetries) return { ...r, attempts: attempt + 1 };
+    await delay(retryDelayMs(attempt, r.retryAfter));
+    attempt++;
   }
 }
 
@@ -68,6 +116,7 @@ export async function broadcast(payload: Payload) {
 
   let sent = 0;
   let failed = 0;
+  let retries = 0;
   // Mark these as inactive after the loop so we batch the UPDATE.
   const deadIds: number[] = [];
 
@@ -76,7 +125,8 @@ export async function broadcast(payload: Payload) {
       endpoint: row.endpoint,
       keys: { p256dh: row.p256dh, auth: row.auth },
     };
-    const r = await sendToOne(sub, payload);
+    const r = await sendWithRetry(sub, payload);
+    retries += r.attempts - 1;
     if (r.ok) {
       sent++;
     } else {
@@ -96,5 +146,5 @@ export async function broadcast(payload: Payload) {
     }
   }
 
-  return { ok: true as const, sent, failed, retired: deadIds.length };
+  return { ok: true as const, sent, failed, retries, retired: deadIds.length };
 }
