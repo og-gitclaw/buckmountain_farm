@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { dbConfigured, getSql } from "@/lib/db";
+import { RedeemRewards } from "@/components/redeem-rewards";
 
 type Scan = {
   token: string;
@@ -160,6 +161,12 @@ export default async function LoyaltyAccount() {
             </ul>
           )}
         </Block>
+
+        <div className="md:col-span-2">
+          <Block title="Redeem points">
+            <RedeemRewards balance={balance} />
+          </Block>
+        </div>
       </section>
 
       {stub && (
