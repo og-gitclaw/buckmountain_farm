@@ -21,6 +21,7 @@ import { FAMILY_COLOR, STRAINS, getStrain } from "@/data/strains";
 import { StrainPlaceholder } from "@/components/strain-placeholder";
 import { LineageTree } from "@/components/lineage-tree";
 import { EffectBars } from "@/components/effect-bars";
+import { NotifyMe } from "@/components/notify-me";
 
 export function generateStaticParams() {
   return STRAINS.map((s) => ({ slug: s.slug }));
@@ -109,13 +110,8 @@ export default async function StrainDetail({
               <p className="mt-2 text-white/60 italic">{s.lineage}</p>
             )}
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/strains/updates"
-                className="rounded-md border border-white/20 hover:border-white/40 px-4 py-2.5 text-sm"
-              >
-                Get pinged on next batch →
-              </Link>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <NotifyMe strainSlug={s.slug} strainName={s.name} />
               <Link
                 href="/loyalty"
                 className="rounded-md bg-white text-black px-4 py-2.5 text-sm font-semibold"
