@@ -8,11 +8,11 @@ export default function NotFound() {
     <main className="min-h-screen bg-neutral-950 text-neutral-100 grid place-items-center p-6">
       <div className="max-w-md text-center space-y-6">
         <Image
-          src="/brand/logo.svg"
+          src="/brand/logo.png"
           alt=""
-          width={120}
-          height={90}
-          className="mx-auto opacity-60"
+          width={240}
+          height={240}
+          className="mx-auto h-32 w-auto opacity-80"
         />
         <h1 className="text-4xl md:text-5xl font-bold">Off the map.</h1>
         <p className="text-white/70 text-sm">

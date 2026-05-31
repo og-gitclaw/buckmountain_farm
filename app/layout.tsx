@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  icons: { icon: "/brand/logo.svg" },
+  icons: { icon: "/icon.svg", apple: "/brand/logo.png" },
   // Search-engine lockdown until Randy approves public launch.
   // See handoff/PROD_PROMOTE.md for the toggle ceremony.
   robots: {
