@@ -4,21 +4,29 @@
  * Per Brendon 2026-05-24 directive: add this on the homepage so visitors
  * can immediately see batch news without hunting through the blog.
  *
- * 2026-05-27 readability fix:
- *   - Section now creates its own stacking context (relative isolate)
- *     AND ships its own dark backdrop with a subtle radial gradient.
- *     Before, the ParallaxBackdrops (`fixed inset-0 z-0` from the page
- *     tail) was bleeding through and making the cards illegible against
- *     a busy flower photo.
- *   - Cards upgraded to proper glass-morphism: heavier bg, real
- *     backdrop-blur, brighter border, subtle hover lift. They now read
- *     as floating panels regardless of what's behind the section.
+ * 2026-05-31 backdrop pass:
+ *   - The flat dark backdrop is replaced with <StrainUpdatesBackdrop>:
+ *     the flower-bud photo (/assets/backdrops/01-hybrid.jpg) on a slow,
+ *     section-scoped parallax layer behind a semi-transparent
+ *     purple-glow scrim. The section is `relative isolate overflow-hidden`
+ *     and the layer is `absolute inset-0` inside it, so the bud is
+ *     clipped to the panel and cannot bleed page-wide like the global
+ *     ParallaxBackdrops did. The hero video at the top + every other
+ *     video/background on the page is untouched.
+ *   - Cards stay proper glass-morphism (heavy bg, backdrop-blur, bright
+ *     border, hover lift) so the foreground pops off the softer bud.
+ *
+ * This file stays a SERVER component on purpose: it also exports
+ * PLACEHOLDER_UPDATES + the StrainUpdate type, which server code
+ * (lib/strain-updates.ts) imports as real values. The client-only scroll
+ * logic lives in ./strain-updates-backdrop.
  *
  * Mobile-2026 effects:
  *   - CSS scroll-driven fade-in on each card (animation-timeline: view())
  *   - scroll-snap-align on the horizontal carousel for mobile
- *   - No JS-driven animations — pure CSS so it's free on the main thread
  */
+
+import { StrainUpdatesBackdrop } from "./strain-updates-backdrop";
 
 export type StrainUpdate = {
   id: string;
@@ -52,16 +60,10 @@ export function StrainUpdates({ updates }: { updates: StrainUpdate[] }) {
       className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden"
       aria-labelledby="strain-updates-heading"
     >
-      {/* Own backdrop: solid neutral base + subtle purple-tinted radial
-          highlight so the panel feels intentional, not just flat black. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, rgba(91,58,138,0.18) 0%, rgba(10,10,10,0.92) 50%, #0a0a0a 100%), #0a0a0a",
-        }}
-      />
+      {/* Flower-bud photo on a slow section-scoped parallax layer behind
+          a semi-transparent scrim. Clipped to the panel by the section's
+          overflow-hidden so it can't bleed into adjacent sections. */}
+      <StrainUpdatesBackdrop />
       {/* Hairline frame at the top + bottom so the section reads as a
           distinct panel even when adjacent sections are also dark. */}
       <div
