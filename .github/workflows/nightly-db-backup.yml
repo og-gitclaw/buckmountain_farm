@@ -1,0 +1,76 @@
+name: Nightly DB backup
+
+# pg_dump the Neon Postgres database and upload a gzipped snapshot to S3.
+# Runs nightly; also runnable on demand. Activates once merged to the
+# default branch (scheduled workflows only fire from the default branch).
+#
+# Required repo secrets:
+#   DATABASE_URL_UNPOOLED  Neon direct (non-pooler) connection string
+#   AWS_ACCESS_KEY_ID      IAM user/role with s3:PutObject on the bucket
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_REGION             e.g. us-east-1
+#   BACKUP_S3_BUCKET       bucket name (no s3:// prefix), e.g. buckmountain-db-backups
+# Optional:
+#   BACKUP_S3_PREFIX       key prefix (default: buckmountain)
+#
+# Retention is handled by an S3 lifecycle rule on the bucket (e.g. expire
+# after 30 days) rather than in CI.
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC ≈ 01:00–02:00 America/Los_Angeles
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Guard required secrets
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          missing=""
+          [ -z "$DATABASE_URL_UNPOOLED" ] && missing="$missing DATABASE_URL_UNPOOLED"
+          [ -z "$BACKUP_S3_BUCKET" ] && missing="$missing BACKUP_S3_BUCKET"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secret(s):$missing"
+            exit 1
+          fi
+
+      - name: Install postgresql-client-16
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Dump and upload to S3
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ secrets.BACKUP_S3_PREFIX || 'buckmountain' }}
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y/%m/%d/%Y%m%dT%H%M%SZ)"
+          key="${BACKUP_S3_PREFIX}/${stamp}.sql.gz"
+          echo "Dumping → s3://${BACKUP_S3_BUCKET}/${key}"
+          # --no-owner/--no-privileges keep the dump portable across roles.
+          # Stream through gzip straight to S3; nothing large hits disk.
+          pg_dump "$DATABASE_URL_UNPOOLED" \
+              --no-owner --no-privileges --format=plain \
+            | gzip -9 \
+            | aws s3 cp - "s3://${BACKUP_S3_BUCKET}/${key}" \
+                --content-type application/gzip
+          echo "Backup complete: s3://${BACKUP_S3_BUCKET}/${key}"
