@@ -115,8 +115,13 @@ export function VideoParallaxHero({
       className="relative h-screen w-full overflow-hidden"
       aria-label="Buck Mountain Cannabis hero"
     >
+      {/* Inner container is taller than the section by 25vh top + bottom so
+          that translateY (up to ~15vh at parallaxFactor=0.15 once the section
+          has scrolled fully past) never reveals an uncovered gap above or
+          below the video. Without the extra height the bottom of the section
+          went black as the user scrolled down and "came back" on scroll up. */}
       <div
-        className="absolute inset-0 will-change-transform"
+        className="absolute inset-x-0 -top-[25vh] -bottom-[25vh] will-change-transform"
         style={{ transform: `translate3d(0, ${translateY}px, 0)` }}
       >
         <video
