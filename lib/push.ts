@@ -61,6 +61,15 @@ export async function sendToOne(sub: PushSubscription, payload: Payload) {
   if (!ensureConfigured()) {
     return { ok: false as const, skipped: true, reason: "vapid-not-configured" };
   }
+  const injected = await consumePushFault();
+  if (injected) {
+    return {
+      ok: false as const,
+      statusCode: injected.statusCode,
+      message: "fault-injected",
+      retryAfter: injected.retryAfter,
+    };
+  }
   try {
     const res = await webpush.sendNotification(sub, JSON.stringify(payload));
     return { ok: true as const, statusCode: res.statusCode };
@@ -76,6 +85,38 @@ export async function sendToOne(sub: PushSubscription, payload: Payload) {
       message: e.message ?? "send-failed",
       retryAfter: e.headers?.["retry-after"],
     };
+  }
+}
+
+/**
+ * If super-admin fault injection is armed, atomically decrement the
+ * remaining counter and return the synthetic error to inject. Otherwise
+ * returns null. Auto-disables when remaining reaches 0. DB errors are
+ * swallowed (no fault injected) so this can never break a real send.
+ */
+async function consumePushFault(): Promise<
+  { statusCode: number; retryAfter?: string } | null
+> {
+  if (!dbConfigured()) return null;
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE push_fault_injection
+         SET remaining = remaining - 1,
+             enabled   = (remaining - 1 > 0),
+             updated_at = now()
+       WHERE id = 1 AND enabled = true AND remaining > 0
+       RETURNING status_code, retry_after_seconds
+    `) as { status_code: number; retry_after_seconds: number | null }[];
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      statusCode: r.status_code,
+      retryAfter:
+        r.retry_after_seconds != null ? String(r.retry_after_seconds) : undefined,
+    };
+  } catch {
+    return null;
   }
 }
 
