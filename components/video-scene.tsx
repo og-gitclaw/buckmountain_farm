@@ -32,13 +32,13 @@ import { useEffect, useRef, useState } from "react";
 export function VideoScene({
   src,
   poster,
-  // Tone-down defaults (2026-05-26) so the mid-page video sections feel
-  // like atmospheric backgrounds, not cinematic interruptions.
-  overlayOpacity = 0.7,
+  // 2026-05-28: filters removed by default — raw footage. Overlay kept
+  // (lighter) so section text stays legible. Props retained for opt-in.
+  overlayOpacity = 0.45,
   align = "left",
-  videoBlurPx = 2,
-  videoBrightness = 0.78,
-  videoSaturate = 0.8,
+  videoBlurPx = 0,
+  videoBrightness = 1,
+  videoSaturate = 1,
   children,
 }: {
   src: string;
@@ -111,9 +111,13 @@ export function VideoScene({
         autoPlay
         preload="metadata"
         className="absolute inset-0 h-full w-full object-cover"
-        style={{
-          filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
-        }}
+        style={
+          videoBlurPx === 0 && videoBrightness === 1 && videoSaturate === 1
+            ? undefined
+            : {
+                filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
+              }
+        }
         aria-hidden
       />
       <div

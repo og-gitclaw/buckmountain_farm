@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  buckmountain.farm compliance-watch agent.
+  Install: cp this file to ~/Library/LaunchAgents/ then
+           launchctl load ~/Library/LaunchAgents/com.buckmountain.compliance-watch.plist
+  Logs:    ~/Library/Logs/buckmountain-compliance-watch.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.buckmountain.compliance-watch</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/iamclaw/buckmountain_farm/agents/compliance-watch/watch.py</string>
+    <string>--once</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>BUCKMOUNTAIN_BASE</key>
+    <string>https://buckmountain.farm</string>
+    <!-- ADMIN_API_TOKEN + ALPINEIQ_* are sourced from
+         ~/.openclaw_secrets.d/compliance_watch.env via cron/hourly.sh
+         (we don't put secrets in the plist for security review). -->
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/iamclaw/Library/Logs/buckmountain-compliance-watch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/iamclaw/Library/Logs/buckmountain-compliance-watch.log</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

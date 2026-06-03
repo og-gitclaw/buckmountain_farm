@@ -56,7 +56,8 @@ export function StrainUpdates({ updates }: { updates: StrainUpdate[] }) {
   return (
     <section
       // `isolate` creates a stacking context so fixed-position parallax
-      // layers behind us can't bleed through into our content.
+      // layers behind us can't bleed through into our content; the
+      // `overflow-hidden` clips our own flower layer to the panel.
       className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden"
       aria-labelledby="strain-updates-heading"
     >

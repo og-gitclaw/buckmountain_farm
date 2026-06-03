@@ -13,3 +13,5 @@ tsconfig.tsbuildinfo
 # Reference-only original of the legacy hero montage. Spliced into 4 short loops
 # (hero-a/b/c/d) which ARE committed; keep this one local for re-cutting if needed.
 public/assets/video/hero-full.mp4
+.vercel
+.env*

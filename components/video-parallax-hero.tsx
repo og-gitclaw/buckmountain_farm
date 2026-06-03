@@ -37,13 +37,15 @@ import { useEffect, useRef, useState } from "react";
 export function VideoParallaxHero({
   src,
   poster,
-  // 2026-05-26 tone-down: slower parallax + darker overlay + gentle blur
-  // so the video reads as backdrop instead of cinematic main act.
   parallaxFactor = 0.15,
-  overlayOpacity = 0.62,
-  videoBlurPx = 1.5,
-  videoBrightness = 0.85,
-  videoSaturate = 0.85,
+  // 2026-05-28: filters removed by default — show the raw drone footage.
+  // The blur/brightness/saturate damp was from the "less cinematic" brief;
+  // reverted per "restore to original content." Props kept so a future
+  // section can opt back in, but defaults are identity (no filter applied).
+  overlayOpacity = 0.4,
+  videoBlurPx = 0,
+  videoBrightness = 1,
+  videoSaturate = 1,
   children,
 }: {
   src: string;
@@ -129,9 +131,15 @@ export function VideoParallaxHero({
           autoPlay
           preload="metadata"
           className="absolute inset-0 h-full w-full object-cover"
-          style={{
-            filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
-          }}
+          // Only build a filter string when something is actually non-identity.
+          // At defaults this is undefined → no compositing filter, raw footage.
+          style={
+            videoBlurPx === 0 && videoBrightness === 1 && videoSaturate === 1
+              ? undefined
+              : {
+                  filter: `blur(${videoBlurPx}px) brightness(${videoBrightness}) saturate(${videoSaturate})`,
+                }
+          }
           aria-hidden
         />
         {/* Soft top-and-bottom fade so the foreground content sits cleanly

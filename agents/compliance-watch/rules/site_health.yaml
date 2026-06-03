@@ -1,0 +1,17 @@
+# Site health — polls /api/health and flags any integration that flips
+# from true → false. Catches things like SES creds expiring, Alpine IQ
+# webhook secret rotation, Neon connection issues.
+id: site_health
+source: buckmountain.farm /api/health
+poll_cadence: 1h
+detect:
+  type: http_diff
+  url: https://buckmountain.farm/api/health
+actions:
+  - kind: admin_alert
+    params:
+      severity: high
+      cta: "Integration map drift detected. Pull /api/health and diff against the previous JSON to identify which flag flipped. Common causes: SES creds rotated, Alpine IQ webhook secret expired, DATABASE_URL_UNPOOLED missing after env edit."
+  - kind: audit_log
+    params:
+      kind: health_drift
