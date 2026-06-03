@@ -4,14 +4,15 @@
  * Per Brendon 2026-05-24 directive: add this on the homepage so visitors
  * can immediately see batch news without hunting through the blog.
  *
- * 2026-05-29 background pass:
- *   - The section shows the flower-bud photo behind it via
- *     <StrainUpdatesBackdrop> — a section-scoped parallax layer that
- *     floats slowly on scroll behind a semi-transparent scrim. The
- *     section is `isolate overflow-hidden`, so the layer is clipped to
- *     the panel and can't bleed page-wide like the global
- *     ParallaxBackdrops did. Hairline top/bottom frames keep it reading
- *     as a distinct, framed panel.
+ * 2026-05-31 backdrop pass:
+ *   - The flat dark backdrop is replaced with <StrainUpdatesBackdrop>:
+ *     the flower-bud photo (/assets/backdrops/01-hybrid.jpg) on a slow,
+ *     section-scoped parallax layer behind a semi-transparent
+ *     purple-glow scrim. The section is `relative isolate overflow-hidden`
+ *     and the layer is `absolute inset-0` inside it, so the bud is
+ *     clipped to the panel and cannot bleed page-wide like the global
+ *     ParallaxBackdrops did. The hero video at the top + every other
+ *     video/background on the page is untouched.
  *   - Cards stay proper glass-morphism (heavy bg, backdrop-blur, bright
  *     border, hover lift) so the foreground pops off the softer bud.
  *
@@ -60,8 +61,9 @@ export function StrainUpdates({ updates }: { updates: StrainUpdate[] }) {
       className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden"
       aria-labelledby="strain-updates-heading"
     >
-      {/* Flower-bud photo on a slow, section-scoped parallax layer behind a
-          semi-transparent scrim (client component for the scroll math). */}
+      {/* Flower-bud photo on a slow section-scoped parallax layer behind
+          a semi-transparent scrim. Clipped to the panel by the section's
+          overflow-hidden so it can't bleed into adjacent sections. */}
       <StrainUpdatesBackdrop />
       {/* Hairline frame at the top + bottom so the section reads as a
           distinct panel even when adjacent sections are also dark. */}
