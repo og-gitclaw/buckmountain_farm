@@ -1,0 +1,20 @@
+# TCPA — FCC compliance feed
+# Polls the FCC consumer-protection bulletins page and flags any change.
+# A real change-detection rule would point at the actual TCPA-relevant
+# bulletin index; this sample uses the FCC consumer-help RSS as a
+# stand-in until the production feeds are picked. Swap the url + path
+# when the regulatory feed sources are confirmed by counsel.
+id: tcpa
+source: FCC consumer protection
+poll_cadence: 6h
+detect:
+  type: http_diff
+  url: https://www.fcc.gov/consumers/guides/stop-unwanted-robocalls-and-texts
+actions:
+  - kind: admin_alert
+    params:
+      severity: medium
+      cta: "Review TCPA bulletin + update SMS welcome template + /api/sms/subscribe consent_text validation if needed."
+  - kind: audit_log
+    params:
+      kind: tcpa_change_detected
