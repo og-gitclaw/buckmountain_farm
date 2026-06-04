@@ -63,17 +63,10 @@ export default async function Home() {
             deps, hoop dreams.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <MagneticButton
-              href="/strains"
-              className="rounded-md bg-white text-black px-5 py-3 text-sm font-semibold"
-            >
-              See the rotation →
+            <MagneticButton href="/strains" className="cta-pill">
+              See the rotation <span data-arrow aria-hidden>→</span>
             </MagneticButton>
-            <MagneticButton
-              href="/loyalty"
-              className="rounded-md border border-white/25 hover:border-white/60 px-5 py-3 text-sm text-white/90"
-              pull={0.25}
-            >
+            <MagneticButton href="/loyalty" className="cta-pill-ghost" pull={0.22}>
               Scan a jar
             </MagneticButton>
           </div>

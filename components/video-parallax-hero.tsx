@@ -59,10 +59,15 @@ export function VideoParallaxHero({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const heroRef = useRef<HTMLDivElement | null>(null);
+  // Stay at 0 + unmounted on SSR so the first client render matches the
+  // server HTML byte-for-byte — eliminates the hydration mismatch React
+  // was logging on every reload.
+  const [mounted, setMounted] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
@@ -71,7 +76,7 @@ export function VideoParallaxHero({
   }, []);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (!mounted || reducedMotion) return;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -86,7 +91,7 @@ export function VideoParallaxHero({
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reducedMotion]);
+  }, [mounted, reducedMotion]);
 
   // Pause when offscreen — battery + cellular friendly.
   useEffect(() => {
@@ -109,7 +114,8 @@ export function VideoParallaxHero({
     return () => io.disconnect();
   }, []);
 
-  const translateY = reducedMotion ? 0 : scrollY * parallaxFactor * -1;
+  const translateY =
+    !mounted || reducedMotion ? 0 : scrollY * parallaxFactor * -1;
 
   return (
     <section

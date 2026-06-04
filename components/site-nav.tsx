@@ -73,11 +73,11 @@ export function SiteNav() {
       }`}
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <nav className="mx-auto flex items-center justify-between gap-4 px-4 md:px-8 py-2 md:py-3 backdrop-blur-md bg-black/45 border-b border-white/5">
+      <nav className="mx-auto flex items-center justify-between gap-2 md:gap-4 px-3 md:px-8 py-2 md:py-3 backdrop-blur-md bg-black/45 border-b border-white/5">
         <Link
           href="/"
           aria-label="Buck Mountain Cannabis — home"
-          className="flex items-center -my-2 md:-my-3"
+          className="flex items-center -my-2 md:-my-3 shrink-0"
         >
           {/* Real brand mark (gold antlered deer + purple triangle + BUCK MTN
               wordmark + lavender halo). Source: Buck Mtn New Logo 8.24.23.
@@ -85,33 +85,40 @@ export function SiteNav() {
               so it doesn't scale down" directive. Negative my- on the Link
               lets the logo extend slightly past the nav padding so the halo
               breathes. */}
+          {/* Square logo — explicit `w-N` matched to `h-N` because Next/Image
+              with `w-auto` collapses to 0 inside this flex nav. Mobile is
+              smaller so the 5 text nav links + search + IG all fit on a
+              375px viewport without overflow. */}
           <Image
             src="/brand/logo.png"
-            alt=""
+            alt="Buck Mountain Cannabis"
             width={480}
             height={480}
             priority
-            className="h-20 w-auto md:h-28"
+            sizes="(min-width: 768px) 112px, 56px"
+            className="h-14 w-14 md:h-28 md:w-28 object-contain"
           />
         </Link>
 
-        <div className="flex items-center gap-1 md:gap-3 text-sm">
+        <div className="flex items-center gap-0.5 md:gap-3 text-[13px] md:text-sm">
           {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="px-2 py-1 md:px-3 text-white/80 hover:text-white transition-colors"
+              className="px-1.5 py-1 md:px-3 text-white/80 hover:text-white transition-colors whitespace-nowrap"
             >
               {l.label}
             </Link>
           ))}
           <StrainSearch />
+          {/* IG hidden below md — at 375px we already fit nav + search; IG
+              is duplicated in the footer + still on every page below the fold. */}
           <a
             href={INSTAGRAM_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Buck Mountain Cannabis on Instagram"
-            className="ml-1 grid place-items-center h-9 w-9 rounded-full border border-white/10 text-white/80 hover:text-white hover:border-white/30 transition"
+            className="hidden md:grid place-items-center h-9 w-9 rounded-full border border-white/10 text-white/80 hover:text-white hover:border-white/30 transition"
           >
             {/* Simple IG glyph — pure inline SVG, no icon dep */}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

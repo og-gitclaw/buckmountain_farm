@@ -40,19 +40,31 @@ export function ParallaxBackdrops({
   startOffset?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Stay at zero on the server + first client render so the SSR HTML matches
+  // the client HTML exactly. `mounted` flips true in useEffect, at which
+  // point we capture the real viewport + start emitting scroll values.
+  const [mounted, setMounted] = useState(false);
+  const [vh, setVh] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setVh(window.innerHeight);
+    const onResize = () => setVh(window.innerHeight);
+    window.addEventListener("resize", onResize);
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
     mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      mq.removeEventListener?.("change", onChange);
+    };
   }, []);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (!mounted || reducedMotion) return;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -67,20 +79,24 @@ export function ParallaxBackdrops({
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reducedMotion]);
+  }, [mounted, reducedMotion]);
 
   // Each backdrop occupies one "viewport-height worth of scroll" cross-fade.
   // The active backdrop is determined by adjustedScrollY / window.innerHeight,
   // where adjustedScrollY accounts for any startOffset (content above the
   // parallax that should not crash into backdrop[0]).
-  const vh = typeof window === "undefined" ? 0 : window.innerHeight;
   const adjustedScrollY = Math.max(0, scrollY - startOffset * vh);
   const progress = vh > 0 ? adjustedScrollY / vh : 0;
 
   // Fade the whole layer in over the half-viewport before backdrop[0]
   // activates. Prevents the "static image showing behind the hero video" bug.
-  const containerOpacity =
-    vh > 0
+  // Pre-mount: render fully visible when startOffset === 0, hidden otherwise —
+  // matches the SSR computation deterministically.
+  const containerOpacity = !mounted
+    ? startOffset === 0
+      ? 1
+      : 0
+    : vh > 0
       ? Math.min(
           1,
           Math.max(0, (scrollY - (startOffset - 0.5) * vh) / (vh * 0.5)),
@@ -98,8 +114,17 @@ export function ParallaxBackdrops({
     >
       {images.map((img, i) => {
         const distance = Math.abs(progress - i);
-        const opacity = Math.max(0, 1 - distance);
-        const translateY = reducedMotion ? 0 : (adjustedScrollY - i * vh) * parallaxFactor * -1;
+        // Pre-mount the first image shows at full opacity, the rest hidden —
+        // mirrors the SSR snapshot so React's hydration diff stays empty.
+        const opacity = !mounted
+          ? i === 0
+            ? 1
+            : 0
+          : Math.max(0, 1 - distance);
+        const translateY =
+          !mounted || reducedMotion
+            ? 0
+            : (adjustedScrollY - i * vh) * parallaxFactor * -1;
         return (
           <div
             key={img.src}

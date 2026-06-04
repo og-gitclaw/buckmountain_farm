@@ -70,7 +70,7 @@ export function BentoStrainGrid({
           What&rsquo;s Flowering
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 md:auto-rows-[200px] gap-3 md:gap-4">
+        <div className="tile-fall-host grid grid-cols-2 md:grid-cols-4 auto-rows-[180px] md:auto-rows-[200px] gap-3 md:gap-4">
           {list.map((s, i) => (
             <BentoTile
               key={s.slug}
@@ -78,6 +78,7 @@ export function BentoStrainGrid({
               videoSrc={videoForSlug?.[s.slug]}
               spanClass={SPANS[i] ?? ""}
               priorityIO={i < 2}
+              index={i}
             />
           ))}
         </div>
@@ -91,11 +92,14 @@ function BentoTile({
   videoSrc,
   spanClass,
   priorityIO,
+  index,
 }: {
   strain: Strain;
   videoSrc?: string;
   spanClass: string;
   priorityIO: boolean;
+  /** 0-based grid position — drives the tile-fall stagger delay. */
+  index: number;
 }) {
   const tileRef = useRef<HTMLAnchorElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -124,7 +128,8 @@ function BentoTile({
     <Link
       href={`/strains/${strain.slug}`}
       ref={tileRef}
-      className={`reveal-on-scroll group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] hover:border-white/25 transition ${spanClass}`}
+      style={{ ["--tile-i" as never]: index }}
+      className={`tile-fall card-tilt group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] hover:border-white/25 transition ${spanClass}`}
     >
       {/* Background layer: video if provided, otherwise the placeholder
           in `background` variant — gradient + atmospheric blobs only,

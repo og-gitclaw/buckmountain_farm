@@ -15,3 +15,6 @@ tsconfig.tsbuildinfo
 public/assets/video/hero-full.mp4
 .vercel
 .env*
+
+# Local Claude preview launch config (per-machine)
+.claude/

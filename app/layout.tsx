@@ -17,10 +17,20 @@ export const metadata: Metadata = {
     siteName: "Buck Mountain Cannabis",
     type: "website",
   },
-  // app/icon.svg (auto-discovered by Next App Router) handles the
-  // browser-tab favicon. This metadata.icons entry sets the apple-touch /
-  // social-card fallback to the real PNG mark.
-  icons: { icon: "/icon.svg", apple: "/brand/logo.png" },
+  // Real Buck Mtn deer-head mark across every favicon slot. app/favicon.ico
+  // (auto-discovered by Next App Router) handles the browser-tab icon; the
+  // entries below cover Android/iOS home-screen, mask icon, and OG preview.
+  icons: {
+    icon: [
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: ["/icons/favicon-32.png"],
+  },
+  manifest: "/manifest.webmanifest",
   // Search-engine lockdown until Randy approves public launch.
   // See handoff/PROD_PROMOTE.md for the toggle ceremony.
   robots: {

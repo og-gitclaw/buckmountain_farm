@@ -1,0 +1,14 @@
+{
+  "name": "Buck Mountain Cannabis",
+  "short_name": "Buck Mtn",
+  "description": "Legacy cannabis brand in the Sierra foothills of Nevada County, California.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icons/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+  ]
+}
