@@ -18,7 +18,7 @@
  */
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STRAINS, FAMILY_COLOR, type Strain } from "@/data/strains";
 import { StrainPlaceholder } from "@/components/strain-placeholder";
 import { EffectTiles } from "@/components/effect-bars";
@@ -75,7 +75,10 @@ export function BentoStrainGrid({
             <BentoTile
               key={s.slug}
               strain={s}
-              videoSrc={videoForSlug?.[s.slug]}
+              // Prop override beats the rendered strain field, so legacy
+              // callers passing a one-off map still win.
+              videoSrc={videoForSlug?.[s.slug] ?? s.tile_loop_url ?? undefined}
+              posterSrc={s.poster_url ?? s.hero_image_url ?? undefined}
               spanClass={SPANS[i] ?? ""}
               priorityIO={i < 2}
             />
@@ -89,18 +92,30 @@ export function BentoStrainGrid({
 function BentoTile({
   strain,
   videoSrc,
+  posterSrc,
   spanClass,
   priorityIO,
 }: {
   strain: Strain;
   videoSrc?: string;
+  posterSrc?: string;
   spanClass: string;
   priorityIO: boolean;
 }) {
   const tileRef = useRef<HTMLAnchorElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (reduced) return;
     const tile = tileRef.current;
     const video = videoRef.current;
     if (!tile || !video) return;
@@ -116,7 +131,10 @@ function BentoTile({
     );
     io.observe(tile);
     return () => io.disconnect();
-  }, [priorityIO]);
+  }, [priorityIO, reduced]);
+
+  // Reduced-motion: ignore the video src entirely so we never even decode it.
+  const effectiveVideoSrc = reduced ? undefined : videoSrc;
 
   const tint = strain.hero_color ?? FAMILY_COLOR[strain.family];
 
@@ -130,16 +148,26 @@ function BentoTile({
           in `background` variant — gradient + atmospheric blobs only,
           no internal text. Foreground copy gets to breathe. */}
       <div className="absolute inset-0">
-        {videoSrc ? (
+        {effectiveVideoSrc ? (
           <video
             ref={videoRef}
-            src={videoSrc}
+            src={effectiveVideoSrc}
+            poster={posterSrc}
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             aria-hidden
+          />
+        ) : posterSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={posterSrc}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         ) : (
           <StrainPlaceholder

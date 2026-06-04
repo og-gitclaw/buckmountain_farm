@@ -22,6 +22,7 @@ import { StrainPlaceholder } from "@/components/strain-placeholder";
 import { LineageTree } from "@/components/lineage-tree";
 import { EffectBars } from "@/components/effect-bars";
 import { NotifyMe } from "@/components/notify-me";
+import { StrainCinematic } from "@/components/strain-cinematic";
 
 export function generateStaticParams() {
   return STRAINS.map((s) => ({ slug: s.slug }));
@@ -69,9 +70,17 @@ export default async function StrainDetail({
         </nav>
 
         <div className="grid gap-8 md:grid-cols-2 items-center">
-          {/* Hero card */}
+          {/* Hero card — cinematic if chl0e has rendered one, otherwise
+              static image / placeholder. See handoff/CINEMATIC_STRAIN_PREVIEWS.md. */}
           <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-white/10 bg-neutral-900">
-            {s.hero_image_url ? (
+            {s.cinematic_url ? (
+              <StrainCinematic
+                src={s.cinematic_url}
+                poster={s.poster_url ?? s.hero_image_url ?? undefined}
+                alt={`${s.name} cinematic preview`}
+                className="h-full w-full object-cover"
+              />
+            ) : s.hero_image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={s.hero_image_url}
