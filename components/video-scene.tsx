@@ -126,13 +126,17 @@ export function VideoScene({
         aria-hidden
       />
       {/* Top + bottom edge fade so the section reads as a panel, not
-          a hard-edged movie frame. */}
+          a hard-edged movie frame. Stops at near-fully-black at the very
+          edges (0.95 -> 0.55 -> 0 over the first ~22%) so adjacent dark
+          sections — including back-to-back VideoScenes — hand off as a
+          clean black gap rather than blending half-transparent frames.
+          Matches the boundary treatment in ScrollScrubbedVideo. */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0) 22%, rgba(10,10,10,0) 78%, rgba(10,10,10,0.55) 100%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.55) 8%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.55) 92%, rgba(0,0,0,0.95) 100%)",
         }}
       />
       <div
