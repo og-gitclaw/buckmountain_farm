@@ -130,7 +130,10 @@ export function ScrollScrubbedVideo({
       className="relative w-full"
       style={{ height: `${lengthInVh * 100}vh` }}
     >
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
+      {/* Inner sticky pin sized in `svh` so iOS Safari's URL bar
+          collapsing mid-scroll doesn't change the pin height and shift
+          the b-roll mid-playback. */}
+      <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
         <video
           ref={videoRef}
           src={src}

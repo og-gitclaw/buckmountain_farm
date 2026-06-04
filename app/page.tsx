@@ -88,11 +88,13 @@ export default async function Home() {
       {/* 3. Strain Updates */}
       <StrainUpdates updates={updates} />
 
-      {/* 4. Scroll-scrubbed cultivation b-roll — the "wow" moment */}
+      {/* 4. Scroll-scrubbed cultivation b-roll — the "wow" moment.
+          lengthInVh=2.5 keeps the desktop reveal but shortens the mobile
+          scroll burden (3.5 was ~3.5 phone-screens for one b-roll clip). */}
       <ScrollScrubbedVideo
         src="/assets/video/hero-b-interior.mp4"
         poster="/assets/video/hero-b-interior-poster.jpg"
-        lengthInVh={3.5}
+        lengthInVh={2.5}
         overlayOpacity={0.32}
       >
         <div className="reveal-stagger">
@@ -163,7 +165,7 @@ export default async function Home() {
           ]}
         />
 
-        <div className="relative z-10 min-h-screen flex flex-col justify-center p-8 md:p-16">
+        <div className="relative z-10 min-h-[100svh] flex flex-col justify-center p-8 md:p-16">
           <div className="max-w-3xl mx-auto reveal-on-scroll">
             <div className="chapter-divider mb-8">Chapter II · Questions</div>
             <h2 className="text-4xl md:text-6xl font-bold text-center mb-12">

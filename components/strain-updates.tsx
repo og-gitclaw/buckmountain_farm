@@ -58,7 +58,10 @@ export function StrainUpdates({ updates }: { updates: StrainUpdate[] }) {
       // `isolate` creates a stacking context so fixed-position parallax
       // layers behind us can't bleed through into our content; the
       // `overflow-hidden` clips our own flower layer to the panel.
-      className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden"
+      // `100svh` (small viewport height) keeps the section sized to the
+      // stable mobile viewport, so iOS Safari's URL-bar collapse doesn't
+      // suddenly push the section taller than the screen mid-scroll.
+      className="relative isolate z-10 min-h-[100svh] flex flex-col justify-center p-8 md:p-16 overflow-hidden"
       aria-labelledby="strain-updates-heading"
     >
       {/* Flower-bud photo on a slow section-scoped parallax layer behind
