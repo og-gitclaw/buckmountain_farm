@@ -150,8 +150,13 @@ export function ScrollScrubbedVideo({
           aria-hidden
           className="absolute inset-0 pointer-events-none"
           style={{
+            // Strong black hand-off at the section boundaries so the
+            // sticky video poster doesn't visually bleed into the
+            // section above (StrainUpdates) or below (VideoScene).
+            // The earlier 0.5/0.5 fades were too soft and read as an
+            // unintentional overlap with the adjacent dark sections.
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 75%, rgba(0,0,0,0.5) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.55) 8%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.55) 92%, rgba(0,0,0,0.95) 100%)",
           }}
         />
         <div className="relative z-10 h-full w-full flex items-center justify-center p-8 md:p-16">

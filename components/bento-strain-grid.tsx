@@ -23,7 +23,10 @@ import { STRAINS, FAMILY_COLOR, type Strain } from "@/data/strains";
 import { StrainPlaceholder } from "@/components/strain-placeholder";
 import { EffectTiles } from "@/components/effect-bars";
 
-const FEATURED_SLUGS = [
+// Pool of bento candidates in priority order. The grid renders the first
+// N that survive `excludeSlugs` so the homepage never shows the same strain
+// twice (once in Strain Updates above, once here).
+const FEATURED_POOL = [
   "permanent-og",
   "cheetah-piss",
   "gelato-41",
@@ -31,9 +34,14 @@ const FEATURED_SLUGS = [
   "permanent-marker",
   "grape-lobster",
   "hashberger",
+  "yeet",
+  "dog",
+  "xxx-og",
 ];
 
-/** Bento span recipe — same length as FEATURED_SLUGS. Edit to re-tile. */
+const BENTO_TILE_COUNT = 7;
+
+/** Bento span recipe — one per rendered tile (BENTO_TILE_COUNT). */
 const SPANS = [
   "md:col-span-2 md:row-span-2", // big anchor
   "md:col-span-1 md:row-span-1",
@@ -46,13 +54,21 @@ const SPANS = [
 
 export function BentoStrainGrid({
   videoForSlug,
+  excludeSlugs,
 }: {
   /** Map slug → video URL when we have per-strain micro-loops. */
   videoForSlug?: Partial<Record<string, string>>;
+  /** Slugs already surfaced higher on the page (e.g. Strain Updates). The
+   *  bento grid skips them so the same strain doesn't appear twice in a
+   *  single viewport-roll. */
+  excludeSlugs?: string[];
 }) {
-  const list = FEATURED_SLUGS
+  const skip = new Set(excludeSlugs ?? []);
+  const list = FEATURED_POOL
+    .filter((slug) => !skip.has(slug))
     .map((slug) => STRAINS.find((s) => s.slug === slug))
-    .filter(Boolean) as Strain[];
+    .filter(Boolean)
+    .slice(0, BENTO_TILE_COUNT) as Strain[];
 
   return (
     <section

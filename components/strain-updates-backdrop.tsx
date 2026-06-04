@@ -99,12 +99,16 @@ export function StrainUpdatesBackdrop() {
         />
       </div>
       {/* Scrim: purple brand glow in the center fading to a darker vignette
-          at the edges — frames the bud and keeps the cards legible. */}
+          at the edges. Stacked on top: a vertical linear fade that brings
+          the TOP and BOTTOM of the section to near-fully-black, so the
+          section terminates cleanly into the adjacent <ScrollScrubbedVideo>
+          (whose own top now starts black) instead of bleeding flower-bud
+          textures into the next section's grow-light footage. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 32%, rgba(91,58,138,0.20) 0%, rgba(10,10,10,0.52) 48%, rgba(10,10,10,0.80) 100%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.0) 14%, rgba(0,0,0,0.0) 68%, rgba(0,0,0,0.92) 94%, rgba(0,0,0,1) 100%), radial-gradient(ellipse at 50% 32%, rgba(91,58,138,0.20) 0%, rgba(10,10,10,0.52) 48%, rgba(10,10,10,0.80) 100%)",
         }}
       />
     </div>

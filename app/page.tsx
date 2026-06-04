@@ -143,8 +143,12 @@ export default async function Home() {
         </p>
       </VideoScene>
 
-      {/* 6. Bento grid — strain tiles */}
-      <BentoStrainGrid />
+      {/* 6. Bento grid — strain tiles. Exclude slugs already featured in
+          Strain Updates above so the visitor doesn't see the same three
+          strains twice in a single viewport-roll. */}
+      <BentoStrainGrid
+        excludeSlugs={updates.map((u) => u.strain_slug)}
+      />
 
       {/* 7. Aurora-backed parallax tail */}
       <section className="relative isolate">
