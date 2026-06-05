@@ -46,23 +46,35 @@ export default async function Home() {
 
   return (
     <main className="relative">
-      {/* 1. Hero */}
+      {/* 1. Hero — copy uses the one-shot `.fade-in-on-load` entrance.
+            One-shot CSS, no scroll-timeline dependency (those don't fire
+            for above-the-fold content reliably). 720ms ease-out per
+            element with a small inline `animationDelay` stagger. */}
       <VideoParallaxHero
         src="/assets/video/hero-a-establish.mp4"
         poster="/assets/video/hero-a-establish-poster.jpg"
       >
         <div className="max-w-2xl">
-          <p className="uppercase tracking-[0.3em] text-[11px] text-white/70 mb-3">
+          <p className="fade-in-on-load uppercase tracking-[0.3em] text-[11px] text-white/70 mb-3">
             Sierra Foothills · Nevada County
           </p>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-brand-gradient">
+          <h1
+            className="fade-in-on-load text-5xl md:text-7xl font-bold tracking-tight text-brand-gradient"
+            style={{ animationDelay: "80ms" }}
+          >
             Buck Mountain Cannabis
           </h1>
-          <p className="mt-4 text-lg md:text-xl text-white/80 max-w-xl">
+          <p
+            className="fade-in-on-load mt-4 text-lg md:text-xl text-white/80 max-w-xl"
+            style={{ animationDelay: "180ms" }}
+          >
             A legacy cannabis brand. Hybrid environments, hand-pulled light
             deps, hoop dreams.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div
+            className="fade-in-on-load mt-7 flex flex-wrap gap-3"
+            style={{ animationDelay: "260ms" }}
+          >
             <MagneticButton href="/strains" className="cta-pill">
               See the rotation <span data-arrow aria-hidden>→</span>
             </MagneticButton>

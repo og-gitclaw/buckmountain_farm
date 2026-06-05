@@ -233,6 +233,33 @@ body {
     opacity: 1 !important;
     transform: none !important;
   }
+  .fade-in-on-load {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   One-shot fade for ABOVE-THE-FOLD content. Plays once on page
+   load — NOT scroll-driven. Safe to use on the hero, where
+   animation-timeline:view() can't be relied on (the element
+   never "enters" the viewport because it loads already inside).
+   Pair with inline `animationDelay` to stagger siblings.
+   --------------------------------------------------------------- */
+.fade-in-on-load {
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(4px);
+  animation: fade-in-on-load-kf 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes fade-in-on-load-kf {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
 }
 
 /* ---------------------------------------------------------------
