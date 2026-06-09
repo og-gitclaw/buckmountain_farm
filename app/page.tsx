@@ -6,47 +6,43 @@ import { AuroraMesh } from "@/components/aurora-mesh";
 import { BentoStrainGrid } from "@/components/bento-strain-grid";
 import { MagneticButton } from "@/components/magnetic-button";
 import { StrainUpdates } from "@/components/strain-updates";
+import { FxStatusIndicator } from "@/components/fx-status-indicator";
 import { loadStrainUpdates } from "@/lib/strain-updates";
+import { parseFxFlags } from "@/lib/homepage-fx";
 
 /**
- * Homepage v2 — "flashy but not overwhelming."
+ * Homepage — currently in DIAGNOSTIC MODE.
  *
- * The earlier note ("less cinematic, more backgroundish") still applies
- * to motion volume: video overlays stay heavy, blur stays on. What
- * changed is the TYPE of motion + art direction:
+ * The hero video is always on. Every other background / parallax / video
+ * layer is gated behind an `fx` query-param flag (lib/homepage-fx.ts) so
+ * each one can be added back individually to isolate which layer is
+ * producing the "background videos playing under pictures / phantom
+ * multimedia" the user reported.
  *
- *   1. Video hero (toned-down VideoParallaxHero from v1)
- *   2. Chapter divider — sets cinematic pacing
- *   3. Strain Updates section (live DB → fallback placeholder)
- *   4. NEW: ScrollScrubbedVideo — Apple-style scroll-tied playback. The
- *      visitor "drives" the cultivation b-roll with their scroll wheel,
- *      so the bigger video moment never autoplays unprompted.
- *   5. VideoScene (Hybrid Environments + Hoop Dreams + Cultivation Story)
- *   6. NEW: BentoStrainGrid — bento layout of strain tiles (videos
- *      where we have them, procedural placeholders otherwise)
- *   7. NEW: Parallax-tail section ON TOP of an AuroraMesh background,
- *      so even when the photos are missing the page still feels alive
- *   8. FAQ
- *   9. Footer
+ * Default URL = clean baseline (only hero).
+ * /?fx=strain-bg = adds just the flower-bud parallax behind the cards.
+ * /?fx=strain-bg,interior = adds two.
+ * /?fx=all = legacy behavior (everything on).
  *
- * Layered effects across the page (set in app/layout.tsx, applies once):
- *   - GrainOverlay at 6% opacity for that "premium printed paper" feel
- *
- * Per-section opt-ins:
- *   - .reveal-stagger / .reveal-stagger-item for staggered intro
- *   - MagneticButton for premium CTAs (use sparingly)
- *
- * Mobile-safe + reduced-motion safe everywhere.
+ * The corner pill (FxStatusIndicator) shows which flags are currently
+ * active and lets you toggle each by clicking. Remove the gating + that
+ * indicator together once the investigation finishes.
  */
 
-export const revalidate = 60;
-
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ fx?: string | string[] }>;
+}) {
+  const { fx } = await searchParams;
+  const flags = parseFxFlags(fx);
   const updates = await loadStrainUpdates(6);
 
   return (
-    <main className="relative">
-      {/* 1. Hero */}
+    <main className="relative bg-neutral-950">
+      <FxStatusIndicator flags={flags} />
+
+      {/* 1. Hero — ALWAYS ON. The user's stated baseline. */}
       <VideoParallaxHero
         src="/assets/video/hero-a-establish.mp4"
         poster="/assets/video/hero-a-establish-poster.jpg"
@@ -73,84 +69,98 @@ export default async function Home() {
         </div>
       </VideoParallaxHero>
 
-      {/* 2. Chapter divider */}
+      {/* 2. Chapter divider — always on (just text). */}
       <div className="px-6 md:px-16 py-12 max-w-6xl mx-auto">
         <div className="chapter-divider">Chapter I · Always Grinding</div>
       </div>
 
-      {/* 3. Strain Updates */}
-      <StrainUpdates updates={updates} />
+      {/* 3. Strain Updates — cards always render. The flower-bud parallax
+          behind them is gated by `strain-bg`. */}
+      <StrainUpdates updates={updates} showBackdrop={flags["strain-bg"]} />
 
-      {/* 4. Scroll-scrubbed cultivation b-roll — the "wow" moment */}
-      <ScrollScrubbedVideo
-        src="/assets/video/hero-b-interior.mp4"
-        poster="/assets/video/hero-b-interior-poster.jpg"
-        lengthInVh={3.5}
-        overlayOpacity={0.32}
-      >
-        <div className="reveal-stagger">
-          <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
-            Scroll to play
-          </p>
-          <h2 className="reveal-stagger-item text-4xl md:text-6xl font-bold mt-3 max-w-2xl">
-            Inside the room.
+      {/* 4. Scroll-scrubbed cultivation b-roll — entire section gated. */}
+      {flags.interior && (
+        <ScrollScrubbedVideo
+          src="/assets/video/hero-b-interior.mp4"
+          poster="/assets/video/hero-b-interior-poster.jpg"
+          lengthInVh={3.5}
+          overlayOpacity={0.32}
+        >
+          <div className="reveal-stagger">
+            <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
+              Scroll to play
+            </p>
+            <h2 className="reveal-stagger-item text-4xl md:text-6xl font-bold mt-3 max-w-2xl">
+              Inside the room.
+            </h2>
+            <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
+              Light-assist indoor, daily walk-through. The cut keeps when the
+              room keeps. Tighter day-night swing, slower cure, less stress on
+              the plant.
+            </p>
+          </div>
+        </ScrollScrubbedVideo>
+      )}
+
+      {/* 5a. VideoScene Hoop Dreams — entire section gated. */}
+      {flags.hoop && (
+        <VideoScene
+          src="/assets/video/hero-c-flower.mp4"
+          poster="/assets/video/hero-c-flower-poster.jpg"
+          align="center"
+          overlayOpacity={0.4}
+        >
+          <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
+            Outdoor<br />Hoop Dreams
           </h2>
-          <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
-            Light-assist indoor, daily walk-through. The cut keeps when the
-            room keeps. Tighter day-night swing, slower cure, less stress on
-            the plant.
+          <p className="mt-4 text-lg text-white/85 max-w-xl mx-auto">
+            Bringing a new level of quality to outdoor growing.
           </p>
-        </div>
-      </ScrollScrubbedVideo>
+        </VideoScene>
+      )}
 
-      {/* 5. VideoScene cluster — preserved from v1, toned-down defaults */}
-      <VideoScene
-        src="/assets/video/hero-c-flower.mp4"
-        poster="/assets/video/hero-c-flower-poster.jpg"
-        align="center"
-        overlayOpacity={0.4}
-      >
-        <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
-          Outdoor<br />Hoop Dreams
-        </h2>
-        <p className="mt-4 text-lg text-white/85 max-w-xl mx-auto">
-          Bringing a new level of quality to outdoor growing.
-        </p>
-      </VideoScene>
+      {/* 5b. VideoScene Foothills — entire section gated. */}
+      {flags.foothills && (
+        <VideoScene
+          src="/assets/video/hero-d-foothills.mp4"
+          poster="/assets/video/hero-d-foothills-poster.jpg"
+          align="left"
+          overlayOpacity={0.42}
+        >
+          <p className="uppercase tracking-[0.3em] text-xs text-white/60">
+            Sierra Foothills, Nevada County
+          </p>
+          <h2 className="text-4xl md:text-6xl font-bold mt-2">
+            A Legacy Cultivation Story
+          </h2>
+          <p className="mt-4 text-lg text-white/85 max-w-xl">
+            Built on a generation of work in the foothills — light-dep timing,
+            batch-by-batch trim &amp; cure, no two harvests treated the same.
+          </p>
+        </VideoScene>
+      )}
 
-      <VideoScene
-        src="/assets/video/hero-d-foothills.mp4"
-        poster="/assets/video/hero-d-foothills-poster.jpg"
-        align="left"
-        overlayOpacity={0.42}
-      >
-        <p className="uppercase tracking-[0.3em] text-xs text-white/60">
-          Sierra Foothills, Nevada County
-        </p>
-        <h2 className="text-4xl md:text-6xl font-bold mt-2">
-          A Legacy Cultivation Story
-        </h2>
-        <p className="mt-4 text-lg text-white/85 max-w-xl">
-          Built on a generation of work in the foothills — light-dep timing,
-          batch-by-batch trim &amp; cure, no two harvests treated the same.
-        </p>
-      </VideoScene>
+      {/* 6. Bento grid — gated. The tiles' placeholder gradient backgrounds
+          are part of the suspect "phantom multimedia" surface, so the whole
+          section is off in baseline. */}
+      {flags.bento && <BentoStrainGrid />}
 
-      {/* 6. Bento grid — strain tiles */}
-      <BentoStrainGrid />
-
-      {/* 7. Aurora-backed parallax tail */}
-      <section className="relative isolate">
-        <AuroraMesh intensity={0.55} />
-        <ParallaxBackdrops
-          startOffset={1}
-          overlayOpacity={0.45}
-          images={[
-            { src: "/assets/backdrops/02-hoop.jpg", caption: "Outdoor Hoop Dreams" },
-            { src: "/assets/backdrops/03-cultivation.jpg", caption: "Cultivation" },
-            { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
-          ]}
-        />
+      {/* 7. Aurora + ParallaxBackdrops + FAQ. FAQ content always renders;
+          its two background layers are independently gated so we can tell
+          which one is the source of the "background under pictures" glitch. */}
+      <section className="relative isolate bg-neutral-950">
+        {flags.aurora && <AuroraMesh intensity={0.55} />}
+        {flags["parallax-bg"] && (
+          <ParallaxBackdrops
+            startOffset={1}
+            overlayOpacity={0.45}
+            images={[
+              { src: "/assets/backdrops/02-hoop.jpg", caption: "Outdoor Hoop Dreams" },
+              { src: "/assets/backdrops/03-cultivation.jpg", caption: "Cultivation" },
+              { src: "/assets/backdrops/05-skate.jpg", caption: "Always Grinding" },
+            ]}
+          />
+        )}
 
         <div className="relative z-10 min-h-screen flex flex-col justify-center p-8 md:p-16">
           <div className="max-w-3xl mx-auto reveal-on-scroll">
@@ -180,7 +190,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 8. Footer */}
+      {/* 8. Footer — always on. */}
       <footer className="relative z-10 p-8 md:p-16 text-sm text-white/50">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-3">
           <span>© Buck Mountain Cannabis · Nevada County, California</span>

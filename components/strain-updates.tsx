@@ -52,19 +52,33 @@ const KIND_TINT: Record<StrainUpdate["kind"], string> = {
   limited: "text-rose-200 border-rose-500/50 bg-rose-500/10",
 };
 
-export function StrainUpdates({ updates }: { updates: StrainUpdate[] }) {
+export function StrainUpdates({
+  updates,
+  showBackdrop = true,
+}: {
+  updates: StrainUpdate[];
+  /** When false, the section renders with a flat dark background instead
+   *  of the flower-bud parallax. Driven by the homepage FX flag system
+   *  (lib/homepage-fx.ts) while the "phantom multimedia" investigation
+   *  is in progress. */
+  showBackdrop?: boolean;
+}) {
   return (
     <section
       // `isolate` creates a stacking context so fixed-position parallax
       // layers behind us can't bleed through into our content; the
       // `overflow-hidden` clips our own flower layer to the panel.
-      className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden"
+      className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden bg-neutral-950"
       aria-labelledby="strain-updates-heading"
     >
-      {/* Flower-bud photo on a slow section-scoped parallax layer behind
-          a semi-transparent scrim. Clipped to the panel by the section's
-          overflow-hidden so it can't bleed into adjacent sections. */}
-      <StrainUpdatesBackdrop />
+      {showBackdrop && (
+        <>
+          {/* Flower-bud photo on a slow section-scoped parallax layer behind
+              a semi-transparent scrim. Clipped to the panel by the section's
+              overflow-hidden so it can't bleed into adjacent sections. */}
+          <StrainUpdatesBackdrop />
+        </>
+      )}
       {/* Hairline frame at the top + bottom so the section reads as a
           distinct panel even when adjacent sections are also dark. */}
       <div
