@@ -145,15 +145,22 @@ body {
 
 /* Animated film grain — the SVG noise stays still, but we shift the
    SVG's containing div ever so slightly so the grain "lives" instead
-   of being a frozen stipple. Subtle: 1px translate every 200ms. */
+   of being a frozen stipple.
+
+   2026-06: was `0.8s steps(4)` — 1px jumps every 200ms. That produced
+   visible flicker on 1px translucent edges (e.g. the chapter divider
+   hairlines) because `mix-blend-mode: overlay` re-sampled those edges'
+   pixels under a different noise point each step. Switched to smooth
+   linear drift over 24s: total motion is similar but per-frame
+   sub-pixel and imperceptible — no flicker. */
 .grain-overlay {
-  animation: grain-shift 0.8s steps(4) infinite;
+  animation: grain-shift 24s linear infinite;
 }
 @keyframes grain-shift {
   0%   { transform: translate3d(0, 0, 0); }
-  25%  { transform: translate3d(-1px, 1px, 0); }
-  50%  { transform: translate3d(1px, -1px, 0); }
-  75%  { transform: translate3d(-1px, -1px, 0); }
+  25%  { transform: translate3d(-3px, 2px, 0); }
+  50%  { transform: translate3d(2px, -3px, 0); }
+  75%  { transform: translate3d(-2px, -2px, 0); }
   100% { transform: translate3d(0, 0, 0); }
 }
 
@@ -207,7 +214,11 @@ body {
   transform: scaleX(1);
 }
 
-/* Cinematic chapter divider — a hairline + the chapter number */
+/* Cinematic chapter divider — a hairline + the chapter number.
+   2026-06: hairline bumped 1px -> 1.5px and the gradient peak opacity
+   raised 0.4 -> 0.95 so the grain overlay's `mix-blend-mode: overlay`
+   can no longer visibly modulate them. Edges still fade to transparent
+   so the divider keeps its soft hairline read. */
 .chapter-divider {
   display: flex;
   align-items: center;
@@ -221,8 +232,8 @@ body {
 .chapter-divider::after {
   content: "";
   flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(201, 162, 74, 0.4), transparent);
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 74, 0.95), transparent);
 }
 
 /* Reduce-motion overrides for the new effects */
