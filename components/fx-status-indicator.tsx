@@ -35,7 +35,7 @@ export function FxStatusIndicator({ flags }: { flags: FxFlags }) {
 
       {active.length === 0 ? (
         <p className="mt-1 text-white/70">
-          Baseline (only hero). Add a layer:{" "}
+          Bare baseline (only hero). Add a layer:{" "}
           <a className="underline text-amber-200" href="/?fx=strain-bg">
             ?fx=strain-bg
           </a>
@@ -50,8 +50,8 @@ export function FxStatusIndicator({ flags }: { flags: FxFlags }) {
       ) : (
         <p className="mt-1 text-white/80">
           On: <code>{active.join(",")}</code>{" "}
-          <a className="underline text-amber-200" href="/">
-            reset
+          <a className="underline text-amber-200" href="/?fx=none">
+            none
           </a>
         </p>
       )}
@@ -62,7 +62,9 @@ export function FxStatusIndicator({ flags }: { flags: FxFlags }) {
           const next = isOn
             ? active.filter((x) => x !== k)
             : [...active, k];
-          const href = next.length === 0 ? "/" : `/?fx=${next.join(",")}`;
+          // Empty set must be explicit — the plain URL now means the
+          // graduated DEFAULT_ON sections, not "nothing".
+          const href = next.length === 0 ? "/?fx=none" : `/?fx=${next.join(",")}`;
           return (
             <li key={k} className="flex items-center gap-2">
               <span
@@ -90,7 +92,11 @@ export function FxStatusIndicator({ flags }: { flags: FxFlags }) {
         </a>
         {" · "}
         <a className="underline text-amber-200/80" href="/">
-          Baseline
+          Defaults
+        </a>
+        {" · "}
+        <a className="underline text-amber-200/80" href="/?fx=none">
+          Bare
         </a>
       </p>
     </aside>
