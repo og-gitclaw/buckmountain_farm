@@ -1,3 +1,5 @@
+import { ScrollScrubbedVideo } from "@/components/scroll-scrubbed-video";
+
 export const metadata = {
   title: "About — Buck Mountain Cannabis",
   description:
@@ -93,7 +95,32 @@ export default function About() {
         </p>
       </article>
 
-      <section className="px-6 md:px-16 max-w-6xl mx-auto pb-24">
+      {/* The cultivation b-roll — moved here from the homepage so /about
+          actually carries the cinematic walk-through of the room. Sits
+          between the article copy and the still gallery so the page goes
+          words -> motion -> stills. */}
+      <ScrollScrubbedVideo
+        src="/assets/video/hero-b-interior.mp4"
+        poster="/assets/video/hero-b-interior-poster.jpg"
+        lengthInVh={2.5}
+        overlayOpacity={0.32}
+      >
+        <div className="reveal-stagger">
+          <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
+            Scroll to play
+          </p>
+          <h2 className="reveal-stagger-item text-4xl md:text-6xl font-bold mt-3 max-w-2xl">
+            Inside the room.
+          </h2>
+          <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
+            Light-assist indoor, daily walk-through. The cut keeps when the
+            room keeps. Tighter day-night swing, slower cure, less stress on
+            the plant.
+          </p>
+        </div>
+      </ScrollScrubbedVideo>
+
+      <section className="px-6 md:px-16 max-w-6xl mx-auto pt-16 pb-24">
         <p className="uppercase tracking-[0.25em] text-xs text-white/50">
           The farm in pictures
         </p>

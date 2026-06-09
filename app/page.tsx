@@ -1,7 +1,6 @@
 import { ParallaxBackdrops } from "@/components/parallax-backdrops";
 import { VideoParallaxHero } from "@/components/video-parallax-hero";
 import { VideoScene } from "@/components/video-scene";
-import { ScrollScrubbedVideo } from "@/components/scroll-scrubbed-video";
 import { ParallaxImageBreather } from "@/components/parallax-image-breather";
 import { AuroraMesh } from "@/components/aurora-mesh";
 import { BentoStrainGrid } from "@/components/bento-strain-grid";
@@ -82,62 +81,20 @@ export default async function Home() {
       {/* 3. Strain Updates */}
       <StrainUpdates updates={updates} />
 
-      {/* 4. Scroll-scrubbed cultivation b-roll — the "wow" moment */}
-      <ScrollScrubbedVideo
-        src="/assets/video/hero-b-interior.mp4"
-        poster="/assets/video/hero-b-interior-poster.jpg"
-        lengthInVh={3.5}
-        overlayOpacity={0.32}
-      >
-        <div className="reveal-stagger">
-          <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
-            Scroll to play
-          </p>
-          <h2 className="reveal-stagger-item text-4xl md:text-6xl font-bold mt-3 max-w-2xl">
-            Inside the room.
-          </h2>
-          <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
-            Light-assist indoor, daily walk-through. The cut keeps when the
-            room keeps. Tighter day-night swing, slower cure, less stress on
-            the plant.
-          </p>
-        </div>
-      </ScrollScrubbedVideo>
-
-      {/* Breather between the scroll-scrubbed b-roll and the next autoplay
-          video block. Stable still + slow parallax so the eye gets a rest
-          before the next moving shot. Uses 04-jars.jpg — the only backdrop
-          not already in use elsewhere on the homepage. */}
+      {/* Still-image breather between the cards-on-parallax section and
+          the one remaining atmospheric video below. Two videos (hero +
+          Foothills) is the homepage's full motion budget — Inside-the-Room
+          moved to /about, Outdoor Hoop Dreams moved to /wholesale per the
+          "more stills, less videos" direction. */}
       <ParallaxImageBreather
         src="/assets/backdrops/04-jars.jpg"
         alt="Jars on the shelf"
       />
 
-      {/* 5. VideoScene cluster — preserved from v1, toned-down defaults */}
-      <VideoScene
-        src="/assets/video/hero-c-flower.mp4"
-        poster="/assets/video/hero-c-flower-poster.jpg"
-        align="center"
-        overlayOpacity={0.4}
-      >
-        <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
-          Outdoor<br />Hoop Dreams
-        </h2>
-        <p className="mt-4 text-lg text-white/85 max-w-xl mx-auto">
-          Bringing a new level of quality to outdoor growing.
-        </p>
-      </VideoScene>
-
-      {/* Second breather — between Hoop Dreams (Video #1) and the
-          Foothills story (Video #2). 02-hoop.jpg is also used in the
-          global ParallaxBackdrops at the FAQ bottom, but those backdrops
-          fully fade out by the time the user reaches them (PR #21's audit
-          note), so re-using here doesn't read as a duplicate. */}
-      <ParallaxImageBreather
-        src="/assets/backdrops/02-hoop.jpg"
-        alt="Hoop houses at golden hour"
-      />
-
+      {/* 4. The single below-hero atmospheric video. Foothills is the
+          brand-defining "where we are" shot, so it stays on the front
+          while the room walkthrough + outdoor hoop showcase live on the
+          pages where visitors / buyers will actually look for them. */}
       <VideoScene
         src="/assets/video/hero-d-foothills.mp4"
         poster="/assets/video/hero-d-foothills-poster.jpg"
@@ -156,7 +113,14 @@ export default async function Home() {
         </p>
       </VideoScene>
 
-      {/* 6. Bento grid — strain tiles */}
+      {/* Closing breather — gives the Foothills video a soft exit before
+          the Bento tile grid begins. */}
+      <ParallaxImageBreather
+        src="/assets/backdrops/02-hoop.jpg"
+        alt="Hoop houses at golden hour"
+      />
+
+      {/* 5. Bento grid — strain tiles */}
       <BentoStrainGrid />
 
       {/* 7. Aurora-backed parallax tail */}

@@ -1,3 +1,5 @@
+import { VideoScene } from "@/components/video-scene";
+
 export const metadata = {
   title: "Wholesale — Buck Mountain Cannabis",
   description:
@@ -18,7 +20,24 @@ export default function Wholesale() {
         </p>
       </section>
 
-      <section className="px-6 md:px-16 max-w-3xl mx-auto pb-12 space-y-4">
+      {/* Outdoor cultivation showcase — moved here from the homepage so
+          buyers landing on /wholesale see the operation before the
+          ordering blocks. */}
+      <VideoScene
+        src="/assets/video/hero-c-flower.mp4"
+        poster="/assets/video/hero-c-flower-poster.jpg"
+        align="center"
+        overlayOpacity={0.4}
+      >
+        <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
+          Outdoor<br />Hoop Dreams
+        </h2>
+        <p className="mt-4 text-lg text-white/85 max-w-xl mx-auto">
+          Bringing a new level of quality to outdoor growing.
+        </p>
+      </VideoScene>
+
+      <section className="px-6 md:px-16 max-w-3xl mx-auto pt-12 pb-12 space-y-4">
         <Block title="Ordering through Nabis">
           We&rsquo;re live on Nabis as <strong>Buck Mountain Cannabis</strong>.
           If you&rsquo;re already on Nabis, request the menu from your account.
