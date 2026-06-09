@@ -100,6 +100,19 @@ body {
 }
 
 /* ---------------------------------------------------------------
+   Smooth scrolling — affects programmatic scrolls (anchor links,
+   element.scrollIntoView, history navigation). Wheel/trackpad
+   scroll is OS-governed; if you want a JS scroll smoother for
+   that, add Lenis or similar separately.
+   --------------------------------------------------------------- */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* ---------------------------------------------------------------
    Aurora mesh background — three drifting radial-gradient blobs.
    Cost: zero JS, hardware-accelerated transforms only.
    --------------------------------------------------------------- */

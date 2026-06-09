@@ -59,15 +59,14 @@ export function VideoParallaxHero({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const heroRef = useRef<HTMLDivElement | null>(null);
-  // Stay at 0 + unmounted on SSR so the first client render matches the
-  // server HTML byte-for-byte — eliminates the hydration mismatch React
-  // was logging on every reload.
-  const [mounted, setMounted] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
+  // The inner div that holds the video + scrims. The parallax + fadeaway
+  // animate on THIS element via direct ref mutation — no React state on
+  // scroll, no re-renders, no per-frame component reconciliation. Way
+  // smoother than the old setScrollY pattern.
+  const layerRef = useRef<HTMLDivElement | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
@@ -75,23 +74,41 @@ export function VideoParallaxHero({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
+  // Scroll-tied parallax + opacity fadeaway. Direct ref mutation — does
+  // not call setState, so the component never re-renders during scroll.
   useEffect(() => {
-    if (!mounted || reducedMotion) return;
+    const layer = layerRef.current;
+    if (!layer) return;
+    if (reducedMotion) {
+      layer.style.transform = "";
+      layer.style.opacity = "";
+      return;
+    }
     let raf = 0;
+    const update = () => {
+      raf = 0;
+      const y = window.scrollY;
+      const vh = window.innerHeight || 1;
+      const translateY = y * parallaxFactor * -1;
+      // Fade the hero out across the first ~85% of a viewport-worth of
+      // scroll, so by the time the next section is centered the video
+      // is invisible — gives the "fading away from the background video"
+      // read the user asked for.
+      const fadeProgress = Math.max(0, Math.min(1, y / (vh * 0.85)));
+      layer.style.transform = `translate3d(0, ${translateY}px, 0)`;
+      layer.style.opacity = String(1 - fadeProgress);
+    };
     const onScroll = () => {
       if (raf) return;
-      raf = requestAnimationFrame(() => {
-        setScrollY(window.scrollY);
-        raf = 0;
-      });
+      raf = requestAnimationFrame(update);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
+    update();
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [mounted, reducedMotion]);
+  }, [parallaxFactor, reducedMotion]);
 
   // Pause when offscreen — battery + cellular friendly.
   useEffect(() => {
@@ -114,9 +131,6 @@ export function VideoParallaxHero({
     return () => io.disconnect();
   }, []);
 
-  const translateY =
-    !mounted || reducedMotion ? 0 : scrollY * parallaxFactor * -1;
-
   return (
     <section
       ref={heroRef}
@@ -124,8 +138,11 @@ export function VideoParallaxHero({
       aria-label="Buck Mountain Cannabis hero"
     >
       <div
+        ref={layerRef}
         className="absolute inset-0 will-change-transform"
-        style={{ transform: `translate3d(0, ${translateY}px, 0)` }}
+        // Initial SSR style baseline. The scroll effect above takes over on
+        // mount and updates transform + opacity via direct DOM mutation.
+        style={{ transform: "translate3d(0, 0, 0)" }}
       >
         <video
           ref={videoRef}
