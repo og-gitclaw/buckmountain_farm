@@ -2,6 +2,7 @@ import { ParallaxBackdrops } from "@/components/parallax-backdrops";
 import { VideoParallaxHero } from "@/components/video-parallax-hero";
 import { VideoScene } from "@/components/video-scene";
 import { ScrollScrubbedVideo } from "@/components/scroll-scrubbed-video";
+import { ParallaxImageBreather } from "@/components/parallax-image-breather";
 import { AuroraMesh } from "@/components/aurora-mesh";
 import { BentoStrainGrid } from "@/components/bento-strain-grid";
 import { MagneticButton } from "@/components/magnetic-button";
@@ -103,6 +104,15 @@ export default async function Home() {
         </div>
       </ScrollScrubbedVideo>
 
+      {/* Breather between the scroll-scrubbed b-roll and the next autoplay
+          video block. Stable still + slow parallax so the eye gets a rest
+          before the next moving shot. Uses 04-jars.jpg — the only backdrop
+          not already in use elsewhere on the homepage. */}
+      <ParallaxImageBreather
+        src="/assets/backdrops/04-jars.jpg"
+        alt="Jars on the shelf"
+      />
+
       {/* 5. VideoScene cluster — preserved from v1, toned-down defaults */}
       <VideoScene
         src="/assets/video/hero-c-flower.mp4"
@@ -117,6 +127,16 @@ export default async function Home() {
           Bringing a new level of quality to outdoor growing.
         </p>
       </VideoScene>
+
+      {/* Second breather — between Hoop Dreams (Video #1) and the
+          Foothills story (Video #2). 02-hoop.jpg is also used in the
+          global ParallaxBackdrops at the FAQ bottom, but those backdrops
+          fully fade out by the time the user reaches them (PR #21's audit
+          note), so re-using here doesn't read as a duplicate. */}
+      <ParallaxImageBreather
+        src="/assets/backdrops/02-hoop.jpg"
+        alt="Hoop houses at golden hour"
+      />
 
       <VideoScene
         src="/assets/video/hero-d-foothills.mp4"
