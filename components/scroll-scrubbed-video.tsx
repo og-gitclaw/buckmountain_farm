@@ -52,6 +52,29 @@ export function ScrollScrubbedVideo({
   const sectionRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // Defer the actual <video src=...> assignment until the section is within
+  // ~1 viewport of intersecting. `preload="auto"` then fetches enough buffer
+  // for smooth fastSeek by the time the user reaches the section. This
+  // prevents the b-roll MP4 from competing with the hero video for
+  // HTTP-connection slots on first paint — the original "hero doesn't
+  // autoplay on the homepage" complaint.
+  const [srcArmed, setSrcArmed] = useState(false);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setSrcArmed(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "100% 0px" },
+    );
+    io.observe(section);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -133,7 +156,7 @@ export function ScrollScrubbedVideo({
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <video
           ref={videoRef}
-          src={src}
+          src={srcArmed ? src : undefined}
           poster={poster}
           muted
           playsInline

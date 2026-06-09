@@ -135,7 +135,13 @@ export function VideoParallaxHero({
           loop
           playsInline
           autoPlay
-          preload="metadata"
+          // Hero gets priority preload — it's the only above-the-fold video
+          // and competes for HTTP-connection slots against any below-fold
+          // <video> with `preload="metadata"`. `auto` lets the browser pull
+          // enough buffer to autoplay reliably on slow links / iOS Safari.
+          // All below-fold videos use `preload="none"` and only fetch on IO
+          // intersect, so this doesn't blow the budget.
+          preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
           // Only build a filter string when something is actually non-identity.
           // At defaults this is undefined → no compositing filter, raw footage.

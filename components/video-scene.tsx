@@ -108,8 +108,12 @@ export function VideoScene({
         muted
         loop
         playsInline
-        autoPlay
-        preload="metadata"
+        // No `autoPlay` and `preload="none"` so no bytes are fetched until
+        // this section intersects the viewport. The IO effect above calls
+        // v.play() on intersect, which is what triggers the actual fetch.
+        // Lets the hero (above the fold) win the connection-budget race on
+        // first paint.
+        preload="none"
         className="absolute inset-0 h-full w-full object-cover"
         style={
           videoBlurPx === 0 && videoBrightness === 1 && videoSaturate === 1
