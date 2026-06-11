@@ -2,6 +2,7 @@ import { ParallaxBackdrops } from "@/components/parallax-backdrops";
 import { VideoParallaxHero } from "@/components/video-parallax-hero";
 import { VideoScene } from "@/components/video-scene";
 import { FramedVideoCard } from "@/components/framed-video-card";
+import { ParallaxImageBreather } from "@/components/parallax-image-breather";
 import { AuroraMesh } from "@/components/aurora-mesh";
 import { BentoStrainGrid } from "@/components/bento-strain-grid";
 import { MagneticButton } from "@/components/magnetic-button";
@@ -123,7 +124,37 @@ export default async function Home({
         </VideoScene>
       )}
 
-      {/* 5b. VideoScene Foothills — entire section gated. */}
+      {/* 5b. Philosophy breather — gated. A full-screen hand-trim still
+          on a slow section-scoped drift between the two video scenes, so
+          the rhythm is video → calm photograph → video instead of two
+          back-to-back takeovers. Copy states the growing philosophy and
+          links to the COAs. */}
+      {flags.philosophy && (
+        <ParallaxImageBreather
+          src="/assets/backdrops/04-jars.jpg"
+          heightSvh={90}
+          parallaxFactor={0.14}
+        >
+          <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/70">
+            Our Philosophy
+          </p>
+          <h2 className="reveal-stagger-item text-4xl md:text-5xl font-bold mt-3">
+            Grown like it&rsquo;s our last batch.
+          </h2>
+          <p className="reveal-stagger-item mt-4 text-lg text-white/85">
+            Full-organic light deps, a syngonic approach to plant nutrition,
+            hand-trimmed and slow-cured. Every batch goes to the lab before
+            it goes anywhere else.
+          </p>
+          <p className="reveal-stagger-item mt-6">
+            <a href="/coa" className="link-underline text-white/80 hover:text-white">
+              Read the COAs <span aria-hidden>→</span>
+            </a>
+          </p>
+        </ParallaxImageBreather>
+      )}
+
+      {/* 5c. VideoScene Foothills — entire section gated. */}
       {flags.foothills && (
         <VideoScene
           src="/assets/video/hero-d-foothills.mp4"

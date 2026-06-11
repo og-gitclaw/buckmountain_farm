@@ -24,6 +24,7 @@ export const FX_KEYS = [
   "strain-bg",     // <StrainUpdatesBackdrop> behind the strain update cards
   "interior",      // <FramedVideoCard> "Inside the room."
   "hoop",          // <VideoScene> "Outdoor Hoop Dreams"
+  "philosophy",    // <ParallaxImageBreather> hand-trim still + philosophy copy
   "foothills",     // <VideoScene> "A Legacy Cultivation Story"
   "bento",         // <BentoStrainGrid> tile cluster
   "aurora",        // <AuroraMesh> behind the FAQ

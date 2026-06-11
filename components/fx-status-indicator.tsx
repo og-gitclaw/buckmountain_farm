@@ -14,6 +14,7 @@ const FLAG_LABEL: Record<FxKey, string> = {
   "strain-bg": "Strain-cards flower-bud parallax",
   interior: "Inside the room (framed loop)",
   hoop: "Outdoor Hoop Dreams (video)",
+  philosophy: "Philosophy breather (hand-trim still)",
   foothills: "A Legacy Cultivation Story (video)",
   bento: "What's Flowering tile grid",
   aurora: "Aurora mesh (FAQ bg)",
