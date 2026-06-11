@@ -13,8 +13,8 @@ import { FX_KEYS, type FxFlags, type FxKey, activeKeys } from "@/lib/homepage-fx
 const FLAG_LABEL: Record<FxKey, string> = {
   "strain-bg": "Strain-cards flower-bud parallax",
   interior: "Inside the room (framed loop)",
+  philosophy: "Philosophy (framed hand-trim still)",
   hoop: "Outdoor Hoop Dreams (video)",
-  philosophy: "Philosophy breather (hand-trim still)",
   foothills: "A Legacy Cultivation Story (video)",
   bento: "What's Flowering tile grid",
   aurora: "Aurora mesh (FAQ bg)",
