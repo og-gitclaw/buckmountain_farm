@@ -152,7 +152,12 @@ export default async function Home({
         </VideoScene>
       )}
 
-      {/* 5c. VideoScene Foothills — entire section gated. */}
+      {/* 5c. Bento grid "What's Flowering" — gated. The tiles' placeholder
+          gradient backgrounds are part of the suspect "phantom multimedia"
+          surface, so the whole section is off in baseline. */}
+      {flags.bento && <BentoStrainGrid />}
+
+      {/* 5d. VideoScene Foothills — entire section gated. */}
       {flags.foothills && (
         <VideoScene
           src="/assets/video/hero-d-foothills.mp4"
@@ -172,11 +177,6 @@ export default async function Home({
           </p>
         </VideoScene>
       )}
-
-      {/* 6. Bento grid — gated. The tiles' placeholder gradient backgrounds
-          are part of the suspect "phantom multimedia" surface, so the whole
-          section is off in baseline. */}
-      {flags.bento && <BentoStrainGrid />}
 
       {/* 7. Aurora + ParallaxBackdrops + FAQ. FAQ content always renders;
           its two background layers are independently gated so we can tell

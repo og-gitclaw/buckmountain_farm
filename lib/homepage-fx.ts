@@ -25,8 +25,8 @@ export const FX_KEYS = [
   "interior",      // <FramedVideoCard> "Inside the room."
   "philosophy",    // <FramedImageCard> hand-trim still + philosophy copy
   "hoop",          // <VideoScene> "Outdoor Hoop Dreams"
-  "foothills",     // <VideoScene> "A Legacy Cultivation Story"
   "bento",         // <BentoStrainGrid> tile cluster
+  "foothills",     // <VideoScene> "A Legacy Cultivation Story"
   "aurora",        // <AuroraMesh> behind the FAQ
   "parallax-bg",   // <ParallaxBackdrops> behind the FAQ
 ] as const;

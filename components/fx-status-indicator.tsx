@@ -15,8 +15,8 @@ const FLAG_LABEL: Record<FxKey, string> = {
   interior: "Inside the room (framed loop)",
   philosophy: "Philosophy (framed hand-trim still)",
   hoop: "Outdoor Hoop Dreams (video)",
-  foothills: "A Legacy Cultivation Story (video)",
   bento: "What's Flowering tile grid",
+  foothills: "A Legacy Cultivation Story (video)",
   aurora: "Aurora mesh (FAQ bg)",
   "parallax-bg": "Parallax backdrops (FAQ bg)",
 };
