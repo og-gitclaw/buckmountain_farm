@@ -74,7 +74,7 @@ export function FramedVideoCard({
   }, [reducedMotion]);
 
   return (
-    <section className="relative z-10 bg-neutral-950 px-6 md:px-16 py-16 md:py-24">
+    <section className="relative z-10 bg-neutral-950 px-6 md:px-16 pt-12 md:pt-16 pb-16 md:pb-24">
       <div className="max-w-5xl mx-auto">
         {children && <div className="reveal-stagger">{children}</div>}
         <div

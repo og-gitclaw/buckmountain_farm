@@ -46,6 +46,10 @@ export function VideoParallaxHero({
   videoBlurPx = 0,
   videoBrightness = 1,
   videoSaturate = 1,
+  // 2026-06-10: hero no longer owns the whole viewport by default — a
+  // sub-100svh height leaves the next section peeking above the fold so
+  // visitors see there is more page without scrolling blind.
+  heightClassName = "h-screen",
   children,
 }: {
   src: string;
@@ -55,6 +59,8 @@ export function VideoParallaxHero({
   videoBlurPx?: number;
   videoBrightness?: number;
   videoSaturate?: number;
+  /** Tailwind height classes for the hero section, e.g. "h-[75svh] min-h-[480px]". */
+  heightClassName?: string;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -88,13 +94,12 @@ export function VideoParallaxHero({
     const update = () => {
       raf = 0;
       const y = window.scrollY;
-      const vh = window.innerHeight || 1;
+      // Fade relative to the hero's OWN height (it may be sub-viewport
+      // now), not the viewport: the video reaches 0 opacity just before
+      // its bottom edge scrolls past, whatever height the hero renders.
+      const heroH = heroRef.current?.offsetHeight || window.innerHeight || 1;
       const translateY = y * parallaxFactor * -1;
-      // Fade the hero out across the first ~85% of a viewport-worth of
-      // scroll, so by the time the next section is centered the video
-      // is invisible — gives the "fading away from the background video"
-      // read the user asked for.
-      const fadeProgress = Math.max(0, Math.min(1, y / (vh * 0.85)));
+      const fadeProgress = Math.max(0, Math.min(1, y / (heroH * 0.85)));
       layer.style.transform = `translate3d(0, ${translateY}px, 0)`;
       layer.style.opacity = String(1 - fadeProgress);
     };
@@ -134,7 +139,7 @@ export function VideoParallaxHero({
   return (
     <section
       ref={heroRef}
-      className="relative h-screen w-full overflow-hidden"
+      className={`relative ${heightClassName} w-full overflow-hidden`}
       aria-label="Buck Mountain Cannabis hero"
     >
       <div

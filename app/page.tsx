@@ -42,10 +42,13 @@ export default async function Home({
     <main className="relative bg-neutral-950">
       <FxStatusIndicator flags={flags} />
 
-      {/* 1. Hero — ALWAYS ON. The user's stated baseline. */}
+      {/* 1. Hero — ALWAYS ON. The user's stated baseline. Sub-viewport
+          height so the next section peeks above the fold: visitors can
+          see there is more page without having to scroll blind. */}
       <VideoParallaxHero
         src="/assets/video/hero-a-establish.mp4"
         poster="/assets/video/hero-a-establish-poster.jpg"
+        heightClassName="h-[75svh] min-h-[480px]"
       >
         <div className="max-w-2xl">
           <p className="uppercase tracking-[0.3em] text-[11px] text-white/70 mb-3">
@@ -69,20 +72,12 @@ export default async function Home({
         </div>
       </VideoParallaxHero>
 
-      {/* 2. Chapter divider — always on (just text). */}
-      <div className="px-6 md:px-16 py-12 max-w-6xl mx-auto">
-        <div className="chapter-divider">Chapter I · Always Grinding</div>
-      </div>
-
-      {/* 3. Strain Updates — cards always render. The flower-bud parallax
-          behind them is gated by `strain-bg`. */}
-      <StrainUpdates updates={updates} showBackdrop={flags["strain-bg"]} />
-
-      {/* 4. Cultivation loop in a framed card — entire section gated.
-          Replaced the full-bleed scroll-scrub (frozen-frame + keyframe
-          encoding problems, intimidating dark takeover) with an inset
-          ambient loop: copy above, footage in a rounded frame, plays
-          only while visible. */}
+      {/* 2. Cultivation loop in a framed card — entire section gated,
+          placed directly under the hero so it's the content that peeks
+          above the fold. Replaced the full-bleed scroll-scrub
+          (frozen-frame + keyframe encoding problems, intimidating dark
+          takeover) with an inset ambient loop: copy above, footage in a
+          rounded frame, plays only while visible. */}
       {flags.interior && (
         <FramedVideoCard
           src="/assets/video/hero-b-interior-loop.mp4"
@@ -101,6 +96,15 @@ export default async function Home({
           </p>
         </FramedVideoCard>
       )}
+
+      {/* 3. Chapter divider — always on (just text). */}
+      <div className="px-6 md:px-16 py-12 max-w-6xl mx-auto">
+        <div className="chapter-divider">Chapter I · Always Grinding</div>
+      </div>
+
+      {/* 4. Strain Updates — cards always render. The flower-bud parallax
+          behind them is gated by `strain-bg`. */}
+      <StrainUpdates updates={updates} showBackdrop={flags["strain-bg"]} />
 
       {/* 5a. VideoScene Hoop Dreams — entire section gated. */}
       {flags.hoop && (
