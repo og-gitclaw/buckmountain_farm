@@ -54,7 +54,10 @@ export function StrainUpdatesBackdrop() {
         0,
         Math.min(1, (vh - rect.top) / (vh + rect.height)),
       );
-      const travel = rect.height * 0.22; // < the 15% overscan, edges stay covered
+      // 2026-06-11: 0.22 → 0.28 per Brendon — livelier drift on scroll.
+      // Hard ceiling is 0.30 (±travel/2 must stay inside the 15% overscan
+      // or the image edge shows inside the section box).
+      const travel = rect.height * 0.28;
       const y = (0.5 - progress) * travel;
       layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
     };
