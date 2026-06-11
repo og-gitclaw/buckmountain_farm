@@ -100,7 +100,7 @@ export default async function Home({
 
       {/* 3. Chapter divider — always on (just text). */}
       <div className="px-6 md:px-16 py-12 max-w-6xl mx-auto">
-        <div className="chapter-divider">Chapter I · Always Grinding</div>
+        <div className="chapter-divider">Always Grinding</div>
       </div>
 
       {/* 4. Strain Updates — cards always render. The flower-bud parallax
