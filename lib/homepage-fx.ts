@@ -36,8 +36,22 @@ export type FxFlags = Record<FxKey, boolean>;
 
 /** Sections verified clean during the phantom-multimedia investigation.
  *  These render on the plain URL. Order of graduation:
- *    2026-06-09  strain-bg  (hero fadeaway + flicker fix verified first) */
-export const DEFAULT_ON: readonly FxKey[] = ["strain-bg"];
+ *    2026-06-09  strain-bg   (hero fadeaway + flicker fix verified first)
+ *    2026-06-10  interior    (rebuilt as FramedVideoCard — amber loop)
+ *    2026-06-10  philosophy  (FramedImageCard hand-trim still + COA link)
+ *    2026-06-10  hoop, bento, foothills (Brendon approved the curated
+ *                order: hero → interior → strain updates → philosophy →
+ *                hoop → bento → foothills → FAQ)
+ *  NOT graduated: aurora (off-brand wash), parallax-bg (fixed-layer
+ *  phantom-multimedia suspect) — still reachable via ?fx= for testing. */
+export const DEFAULT_ON: readonly FxKey[] = [
+  "strain-bg",
+  "interior",
+  "philosophy",
+  "hoop",
+  "bento",
+  "foothills",
+];
 
 export function parseFxFlags(raw: string | string[] | undefined): FxFlags {
   const text = Array.isArray(raw) ? raw.join(",") : (raw ?? "");
