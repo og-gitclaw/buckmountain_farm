@@ -22,7 +22,7 @@
 
 export const FX_KEYS = [
   "strain-bg",     // <StrainUpdatesBackdrop> behind the strain update cards
-  "interior",      // <ScrollScrubbedVideo> "Inside the room."
+  "interior",      // <FramedVideoCard> "Inside the room."
   "hoop",          // <VideoScene> "Outdoor Hoop Dreams"
   "foothills",     // <VideoScene> "A Legacy Cultivation Story"
   "bento",         // <BentoStrainGrid> tile cluster

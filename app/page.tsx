@@ -1,7 +1,7 @@
 import { ParallaxBackdrops } from "@/components/parallax-backdrops";
 import { VideoParallaxHero } from "@/components/video-parallax-hero";
 import { VideoScene } from "@/components/video-scene";
-import { ScrollScrubbedVideo } from "@/components/scroll-scrubbed-video";
+import { FramedVideoCard } from "@/components/framed-video-card";
 import { AuroraMesh } from "@/components/aurora-mesh";
 import { BentoStrainGrid } from "@/components/bento-strain-grid";
 import { MagneticButton } from "@/components/magnetic-button";
@@ -78,28 +78,28 @@ export default async function Home({
           behind them is gated by `strain-bg`. */}
       <StrainUpdates updates={updates} showBackdrop={flags["strain-bg"]} />
 
-      {/* 4. Scroll-scrubbed cultivation b-roll — entire section gated. */}
+      {/* 4. Cultivation loop in a framed card — entire section gated.
+          Replaced the full-bleed scroll-scrub (frozen-frame + keyframe
+          encoding problems, intimidating dark takeover) with an inset
+          ambient loop: copy above, footage in a rounded frame, plays
+          only while visible. */}
       {flags.interior && (
-        <ScrollScrubbedVideo
-          src="/assets/video/hero-b-interior.mp4"
-          poster="/assets/video/hero-b-interior-poster.jpg"
-          lengthInVh={3.5}
-          overlayOpacity={0.32}
+        <FramedVideoCard
+          src="/assets/video/hero-b-interior-loop.mp4"
+          poster="/assets/video/hero-b-interior-loop-poster.jpg"
         >
-          <div className="reveal-stagger">
-            <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
-              Scroll to play
-            </p>
-            <h2 className="reveal-stagger-item text-4xl md:text-6xl font-bold mt-3 max-w-2xl">
-              Inside the room.
-            </h2>
-            <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
-              Light-assist indoor, daily walk-through. The cut keeps when the
-              room keeps. Tighter day-night swing, slower cure, less stress on
-              the plant.
-            </p>
-          </div>
-        </ScrollScrubbedVideo>
+          <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
+            Cultivation
+          </p>
+          <h2 className="reveal-stagger-item text-4xl md:text-5xl font-bold mt-3 max-w-2xl">
+            Inside the room.
+          </h2>
+          <p className="reveal-stagger-item mt-4 text-lg text-white/85 max-w-xl">
+            Light-assist indoor, daily walk-through. The cut keeps when the
+            room keeps. Tighter day-night swing, slower cure, less stress on
+            the plant.
+          </p>
+        </FramedVideoCard>
       )}
 
       {/* 5a. VideoScene Hoop Dreams — entire section gated. */}

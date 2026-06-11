@@ -56,6 +56,22 @@ body {
   }
 }
 
+/* One-time settle for framed video cards — the footage eases from a
+   slight zoom to rest the first time the frame becomes visible, then
+   never moves again. The global reduced-motion block above collapses
+   this to an instant snap at scale(1). */
+.video-settle {
+  animation: video-settle 6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes video-settle {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 /* View Transitions API — smooth crossfade between routes.
    Browsers without support get an instant swap (no JS shim). */
 @view-transition {

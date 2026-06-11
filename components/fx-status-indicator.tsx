@@ -12,7 +12,7 @@ import { FX_KEYS, type FxFlags, type FxKey, activeKeys } from "@/lib/homepage-fx
 
 const FLAG_LABEL: Record<FxKey, string> = {
   "strain-bg": "Strain-cards flower-bud parallax",
-  interior: "Inside the room (scrub video)",
+  interior: "Inside the room (framed loop)",
   hoop: "Outdoor Hoop Dreams (video)",
   foothills: "A Legacy Cultivation Story (video)",
   bento: "What's Flowering tile grid",
