@@ -41,7 +41,11 @@ export default async function Home({
 
   return (
     <main className="relative bg-neutral-950">
-      <FxStatusIndicator flags={flags} />
+      {/* Diagnostic pill is OPT-IN only: it renders solely when the URL
+          carries an explicit ?fx= param. Public visitors on the plain
+          URL never see it; appending any ?fx= value (e.g. ?fx=none)
+          brings the kill-switch back. */}
+      {fx !== undefined && <FxStatusIndicator flags={flags} />}
 
       {/* 1. Hero — ALWAYS ON. The user's stated baseline. Sub-viewport
           height so the next section peeks above the fold: visitors can
