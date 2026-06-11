@@ -102,7 +102,7 @@ export default async function Home({
         </FramedVideoCard>
       )}
 
-      {/* 3. Chapter divider — always on (just text). */}
+      {/* 3. Divider — always on (just text). */}
       <div className="px-6 md:px-16 py-12 max-w-6xl mx-auto">
         <div className="chapter-divider">Always Grinding</div>
       </div>
@@ -201,7 +201,7 @@ export default async function Home({
 
         <div className="relative z-10 min-h-screen flex flex-col justify-center p-8 md:p-16">
           <div className="max-w-3xl mx-auto reveal-on-scroll">
-            <div className="chapter-divider mb-8">Chapter II · Questions</div>
+            <div className="chapter-divider mb-8">Questions</div>
             <h2 className="text-4xl md:text-6xl font-bold text-center mb-12">
               Frequently Asked Questions
             </h2>
