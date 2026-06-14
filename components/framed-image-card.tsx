@@ -16,7 +16,8 @@
  *     (IntersectionObserver)
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useSmoothParallax } from "@/lib/use-smooth-parallax";
 
 export function FramedImageCard({
   src,
@@ -35,27 +36,14 @@ export function FramedImageCard({
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const layerRef = useRef<HTMLDivElement | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    const frame = frameRef.current;
-    const layer = layerRef.current;
-    if (!frame || !layer) return;
-
-    let raf = 0;
-    let visible = false;
-
-    const update = () => {
-      raf = 0;
+  // Smoothed (lerped) parallax inside the frame — shared damping keeps
+  // the drift consistent with the hero + Strain Updates backdrop.
+  useSmoothParallax({
+    triggerRef: frameRef,
+    getTarget: () => {
+      const frame = frameRef.current;
+      if (!frame) return 0;
       const rect = frame.getBoundingClientRect();
       const vh = window.innerHeight;
       // 0 as the frame's top reaches the viewport bottom, 1 as its
@@ -65,33 +53,17 @@ export function FramedImageCard({
         Math.min(1, (vh - rect.top) / (vh + rect.height)),
       );
       const travel = rect.height * parallaxFactor;
-      const y = (0.5 - progress) * travel;
-      layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
-    };
-
-    const onScroll = () => {
-      if (!visible || raf) return;
-      raf = requestAnimationFrame(update);
-    };
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry.isIntersecting;
-        if (visible) update();
-      },
-      { threshold: 0 },
-    );
-    io.observe(frame);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-
-    return () => {
-      io.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [reducedMotion, parallaxFactor]);
+      return (0.5 - progress) * travel;
+    },
+    apply: (y) => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+    },
+    reset: () => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = "";
+    },
+  });
 
   return (
     <section className="relative z-10 bg-neutral-950 px-6 md:px-16 pt-12 md:pt-16 pb-16 md:pb-24">

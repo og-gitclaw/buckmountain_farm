@@ -20,32 +20,20 @@
  * (IntersectionObserver) and is rAF-throttled.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useSmoothParallax } from "@/lib/use-smooth-parallax";
 
 export function StrainUpdatesBackdrop() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const layerRef = useRef<HTMLDivElement | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    const root = rootRef.current;
-    const layer = layerRef.current;
-    if (!root || !layer) return;
-
-    let raf = 0;
-    let visible = false;
-
-    const update = () => {
-      raf = 0;
+  // Smoothed (lerped) parallax — the bud photo trails the scroll instead
+  // of snapping to it. Shared damping = same feel as the hero + cards.
+  useSmoothParallax({
+    triggerRef: rootRef,
+    getTarget: () => {
+      const root = rootRef.current;
+      if (!root) return 0;
       const rect = root.getBoundingClientRect();
       const vh = window.innerHeight;
       // progress: 0 as the top reaches the viewport bottom, 1 as the
@@ -58,33 +46,17 @@ export function StrainUpdatesBackdrop() {
       // Hard ceiling is 0.30 (±travel/2 must stay inside the 15% overscan
       // or the image edge shows inside the section box).
       const travel = rect.height * 0.28;
-      const y = (0.5 - progress) * travel;
-      layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
-    };
-
-    const onScroll = () => {
-      if (!visible || raf) return;
-      raf = requestAnimationFrame(update);
-    };
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry.isIntersecting;
-        if (visible) update();
-      },
-      { threshold: 0 },
-    );
-    io.observe(root);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-
-    return () => {
-      io.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [reducedMotion]);
+      return (0.5 - progress) * travel;
+    },
+    apply: (y) => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+    },
+    reset: () => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = "";
+    },
+  });
 
   return (
     <div ref={rootRef} aria-hidden className="absolute inset-0 -z-10 overflow-hidden">

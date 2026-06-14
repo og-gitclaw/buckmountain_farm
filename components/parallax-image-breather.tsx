@@ -20,7 +20,8 @@
  *     no work.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useSmoothParallax } from "@/lib/use-smooth-parallax";
 
 export function ParallaxImageBreather({
   src,
@@ -49,27 +50,14 @@ export function ParallaxImageBreather({
 }) {
   const rootRef = useRef<HTMLElement | null>(null);
   const layerRef = useRef<HTMLDivElement | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    const root = rootRef.current;
-    const layer = layerRef.current;
-    if (!root || !layer) return;
-
-    let raf = 0;
-    let visible = false;
-
-    const update = () => {
-      raf = 0;
+  // Smoothed (lerped) parallax — shared damping matches the homepage
+  // backdrops so this breather drifts with the same inertia.
+  useSmoothParallax({
+    triggerRef: rootRef,
+    getTarget: () => {
+      const root = rootRef.current;
+      if (!root) return 0;
       const rect = root.getBoundingClientRect();
       const vh = window.innerHeight;
       const progress = Math.max(
@@ -77,33 +65,17 @@ export function ParallaxImageBreather({
         Math.min(1, (vh - rect.top) / (vh + rect.height)),
       );
       const travel = rect.height * parallaxFactor;
-      const y = (0.5 - progress) * travel;
-      layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
-    };
-
-    const onScroll = () => {
-      if (!visible || raf) return;
-      raf = requestAnimationFrame(update);
-    };
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry.isIntersecting;
-        if (visible) update();
-      },
-      { threshold: 0 },
-    );
-    io.observe(root);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-
-    return () => {
-      io.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [reducedMotion, parallaxFactor]);
+      return (0.5 - progress) * travel;
+    },
+    apply: (y) => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+    },
+    reset: () => {
+      const layer = layerRef.current;
+      if (layer) layer.style.transform = "";
+    },
+  });
 
   return (
     <section

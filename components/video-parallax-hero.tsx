@@ -32,7 +32,8 @@
  * also isn't there, the hero stays dark — the page still works.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useSmoothParallax } from "@/lib/use-smooth-parallax";
 
 export function VideoParallaxHero({
   src,
@@ -70,50 +71,41 @@ export function VideoParallaxHero({
   // scroll, no re-renders, no per-frame component reconciliation. Way
   // smoother than the old setScrollY pattern.
   const layerRef = useRef<HTMLDivElement | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-
-  // Scroll-tied parallax + opacity fadeaway. Direct ref mutation — does
-  // not call setState, so the component never re-renders during scroll.
-  useEffect(() => {
-    const layer = layerRef.current;
-    if (!layer) return;
-    if (reducedMotion) {
-      layer.style.transform = "";
-      layer.style.opacity = "";
-      return;
-    }
-    let raf = 0;
-    const update = () => {
-      raf = 0;
-      const y = window.scrollY;
+  // Scroll-tied parallax + opacity fadeaway, now SMOOTHED: the hook lerps
+  // the scroll value so the video drifts + fades with inertia instead of
+  // snapping 1:1 to the scrollbar. We smooth scrollY itself and derive
+  // both transform and opacity from the one damped scalar, so they stay
+  // in lockstep. Direct ref mutation — no React state, no re-renders.
+  useSmoothParallax({
+    triggerRef: heroRef,
+    getTarget: () => window.scrollY,
+    apply: (y) => {
+      const layer = layerRef.current;
+      if (!layer) return;
       // Fade relative to the hero's OWN height (it may be sub-viewport
       // now), not the viewport: the video reaches 0 opacity just before
       // its bottom edge scrolls past, whatever height the hero renders.
       const heroH = heroRef.current?.offsetHeight || window.innerHeight || 1;
+      // translateY uses the SMOOTHED scroll value → the drift has inertia
+      // (a few px of lag here is imperceptible).
       const translateY = y * parallaxFactor * -1;
-      const fadeProgress = Math.max(0, Math.min(1, y / (heroH * 0.85)));
-      layer.style.transform = `translate3d(0, ${translateY}px, 0)`;
+      // Opacity tracks the LIVE scroll position 1:1. A lagged fade reads as
+      // the video lingering too opaque while foreground content has already
+      // slid over it, so the fade must stay locked to the scrollbar even
+      // though the parallax drift is eased.
+      const fadeProgress = Math.max(0, Math.min(1, window.scrollY / (heroH * 0.85)));
+      layer.style.transform = `translate3d(0, ${translateY.toFixed(1)}px, 0)`;
       layer.style.opacity = String(1 - fadeProgress);
-    };
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(update);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    update();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [parallaxFactor, reducedMotion]);
+    },
+    reset: () => {
+      const layer = layerRef.current;
+      if (layer) {
+        layer.style.transform = "";
+        layer.style.opacity = "";
+      }
+    },
+  });
 
   // Pause when offscreen — battery + cellular friendly.
   useEffect(() => {
