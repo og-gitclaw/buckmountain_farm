@@ -54,6 +54,13 @@ export type Strain = {
    *  hero_color as the tint. */
   hero_image_url?: string | null;
   hero_color?: string;                    // hex; falls back to family default
+  /** Cinematic strain-preview derivatives published by chl0e via
+   *  POST /api/admin/assets (see handoff/CINEMATIC_STRAIN_PREVIEWS.md).
+   *  All three are independently optional — components fall back to
+   *  hero_image_url / StrainPlaceholder when a field is null. */
+  poster_url?: string | null;             // still, first paint + reduced-motion
+  tile_loop_url?: string | null;          // <=5s muted loop, /strains tiles
+  cinematic_url?: string | null;          // 12-18s composite, /strains/[slug] hero
   /** Per-family default tints (purple-ish for indica, gold-ish for hybrid,
    *  green-ish for sativa). Used by the placeholder. */
   research_status: "needs-cultivator" | "needs-research" | "label-only" | "ready";

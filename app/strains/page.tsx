@@ -11,6 +11,7 @@ import { STRAINS, type Strain } from "@/data/strains";
 import { StrainPlaceholder } from "@/components/strain-placeholder";
 import { StrainFilters } from "@/components/strain-filters";
 import { EffectTiles } from "@/components/effect-bars";
+import { StrainTileVideo } from "@/components/strain-tile-video";
 
 export const metadata = {
   title: "Strains — Buck Mountain Cannabis",
@@ -81,7 +82,14 @@ export default function StrainsIndex() {
                   className="reveal-on-scroll group rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/25 transition overflow-hidden flex flex-col"
                 >
                   <div className="aspect-[4/3] relative">
-                    {s.hero_image_url ? (
+                    {s.tile_loop_url ? (
+                      <StrainTileVideo
+                        src={s.tile_loop_url}
+                        poster={s.poster_url ?? s.hero_image_url ?? undefined}
+                        alt={`${s.name} loop`}
+                        className="h-full w-full"
+                      />
+                    ) : s.hero_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={s.hero_image_url}
