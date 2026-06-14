@@ -199,7 +199,7 @@ export default async function Home({
           />
         )}
 
-        <div className="relative z-10 min-h-screen flex flex-col justify-center p-8 md:p-16">
+        <div className="relative z-10 min-h-[100svh] flex flex-col justify-center p-8 md:p-16">
           <div className="max-w-3xl mx-auto reveal-on-scroll">
             <div className="chapter-divider mb-8">Questions</div>
             <h2 className="text-4xl md:text-6xl font-bold text-center mb-12">
