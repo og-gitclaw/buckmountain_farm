@@ -33,6 +33,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useSequentialVideoLoad } from "@/components/video-load-coordinator";
 
 export function VideoParallaxHero({
   src,
@@ -50,6 +51,10 @@ export function VideoParallaxHero({
   // sub-100svh height leaves the next section peeking above the fold so
   // visitors see there is more page without scrolling blind.
   heightClassName = "h-screen",
+  // Position in the homepage's sequential video-load chain. The hero is the
+  // priority above-the-fold video, so it registers as `eager` (downloads
+  // first, always) and reports readiness to unblock the next video.
+  loadOrder = 0,
   children,
 }: {
   src: string;
@@ -61,6 +66,7 @@ export function VideoParallaxHero({
   videoSaturate?: number;
   /** Tailwind height classes for the hero section, e.g. "h-[75svh] min-h-[480px]". */
   heightClassName?: string;
+  loadOrder?: number;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -79,6 +85,16 @@ export function VideoParallaxHero({
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
+
+  // Priority slot in the homepage sequential load chain: downloads first,
+  // reports readiness to release the next video. Doesn't gate the hero's
+  // own playback (it stays eager-autoplay below).
+  useSequentialVideoLoad({
+    order: loadOrder,
+    videoRef,
+    eager: true,
+    disabled: reducedMotion,
+  });
 
   // Scroll-tied parallax + opacity fadeaway. Direct ref mutation — does
   // not call setState, so the component never re-renders during scroll.
@@ -157,7 +173,11 @@ export function VideoParallaxHero({
           loop
           playsInline
           autoPlay
-          preload="metadata"
+          // Priority above-the-fold video — preload aggressively so it's the
+          // first (and, on land, only) video pulling bytes. Every below-fold
+          // video starts at preload="none" and is released sequentially by
+          // the load coordinator once this one is buffered.
+          preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
           // Only build a filter string when something is actually non-identity.
           // At defaults this is undefined → no compositing filter, raw footage.

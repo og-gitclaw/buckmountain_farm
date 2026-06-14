@@ -8,6 +8,7 @@ import { BentoStrainGrid } from "@/components/bento-strain-grid";
 import { MagneticButton } from "@/components/magnetic-button";
 import { StrainUpdates } from "@/components/strain-updates";
 import { FxStatusIndicator } from "@/components/fx-status-indicator";
+import { VideoLoadProvider } from "@/components/video-load-coordinator";
 import { loadStrainUpdates } from "@/lib/strain-updates";
 import { parseFxFlags } from "@/lib/homepage-fx";
 
@@ -41,6 +42,11 @@ export default async function Home({
 
   return (
     <main className="relative bg-neutral-950">
+      {/* VideoLoadProvider serializes homepage video downloads: the hero
+          (loadOrder 0) preloads first; each subsequent section video only
+          begins downloading after the one before it is buffered and is
+          within ~1 viewport. See components/video-load-coordinator.tsx. */}
+      <VideoLoadProvider>
       {/* Diagnostic pill is OPT-IN only: it renders solely when the URL
           carries an explicit ?fx= param. Public visitors on the plain
           URL never see it; appending any ?fx= value (e.g. ?fx=none)
@@ -54,6 +60,7 @@ export default async function Home({
         src="/assets/video/hero-a-establish.mp4"
         poster="/assets/video/hero-a-establish-poster.jpg"
         heightClassName="h-[75svh] min-h-[480px]"
+        loadOrder={0}
       >
         <div className="max-w-2xl">
           <p className="uppercase tracking-[0.3em] text-[11px] text-white/70 mb-3">
@@ -87,6 +94,7 @@ export default async function Home({
         <FramedVideoCard
           src="/assets/video/hero-b-interior-loop.mp4"
           poster="/assets/video/hero-b-interior-loop-poster.jpg"
+          loadOrder={1}
         >
           <p className="reveal-stagger-item uppercase tracking-[0.3em] text-xs text-white/60">
             Cultivation
@@ -146,6 +154,7 @@ export default async function Home({
           poster="/assets/video/hero-c-flower-poster.jpg"
           align="center"
           overlayOpacity={0.4}
+          loadOrder={2}
         >
           <h2 className="text-4xl md:text-7xl font-bold uppercase tracking-wider">
             Outdoor<br />Hoop Dreams
@@ -168,6 +177,7 @@ export default async function Home({
           poster="/assets/video/hero-d-foothills-poster.jpg"
           align="left"
           overlayOpacity={0.42}
+          loadOrder={3}
         >
           <p className="uppercase tracking-[0.3em] text-xs text-white/60">
             Sierra Foothills, Nevada County
@@ -255,6 +265,7 @@ export default async function Home({
           Always grinding for the highest quality. Treating every batch like it&rsquo;s our last.
         </p>
       </footer>
+      </VideoLoadProvider>
     </main>
   );
 }

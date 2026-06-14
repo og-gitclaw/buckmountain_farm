@@ -28,6 +28,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useSequentialVideoLoad } from "@/components/video-load-coordinator";
 
 export function VideoScene({
   src,
@@ -39,6 +40,7 @@ export function VideoScene({
   videoBlurPx = 0,
   videoBrightness = 1,
   videoSaturate = 1,
+  loadOrder = 0,
   children,
 }: {
   src: string;
@@ -48,6 +50,8 @@ export function VideoScene({
   videoBlurPx?: number;
   videoBrightness?: number;
   videoSaturate?: number;
+  /** Position in the homepage sequential video-load chain. */
+  loadOrder?: number;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -62,9 +66,19 @@ export function VideoScene({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
+  // Sequential load: this scene's bytes only stream once the prior video in
+  // the chain is buffered and this section is within ~1 viewport. `ready`
+  // flips true when buffered; playback is gated on it so the scene never
+  // jumps the download queue by trying to play un-buffered.
+  const { ready } = useSequentialVideoLoad({
+    order: loadOrder,
+    videoRef,
+    disabled: reducedMotion,
+  });
+
   // Pause when offscreen. The whole point of splicing the hero into short
   // loops is that there are several on the page — we only want the visible
-  // one decoding frames at any moment.
+  // one decoding frames at any moment. Only play once buffered (`ready`).
   useEffect(() => {
     const v = videoRef.current;
     const h = sectionRef.current;
@@ -73,21 +87,26 @@ export function VideoScene({
       v.pause();
       return;
     }
+    let intersecting = false;
+    const apply = () => {
+      if (intersecting && ready) {
+        v.play().catch(() => {
+          /* autoplay may be blocked on mobile data-saver; poster will show. */
+        });
+      } else {
+        v.pause();
+      }
+    };
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          v.play().catch(() => {
-            /* autoplay may be blocked on mobile data-saver; poster will show. */
-          });
-        } else {
-          v.pause();
-        }
+        intersecting = entry.isIntersecting;
+        apply();
       },
       { threshold: 0.15 },
     );
     io.observe(h);
     return () => io.disconnect();
-  }, [reducedMotion]);
+  }, [reducedMotion, ready]);
 
   const alignClass =
     align === "center"
@@ -108,8 +127,11 @@ export function VideoScene({
         muted
         loop
         playsInline
-        autoPlay
-        preload="metadata"
+        // No autoPlay + preload="none": the section shows its poster and
+        // pulls zero video bytes until the load coordinator releases this
+        // slot in the sequential chain. Playback is started imperatively by
+        // the IntersectionObserver above once buffered + in view.
+        preload="none"
         className="absolute inset-0 h-full w-full object-cover"
         style={
           videoBlurPx === 0 && videoBrightness === 1 && videoSaturate === 1
