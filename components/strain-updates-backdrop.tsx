@@ -102,12 +102,15 @@ export function StrainUpdatesBackdrop() {
         />
       </div>
       {/* Scrim: purple brand glow in the center fading to a darker vignette
-          at the edges — frames the bud and keeps the cards legible. */}
+          at the edges. A vertical linear gradient stacks on top of the
+          radial scrim so the top 14% and bottom 14% of the section are
+          near-fully-black (0.92–1.0). Section terminates in pure black,
+          no flower silhouette leaking into the adjacent section. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 32%, rgba(91,58,138,0.20) 0%, rgba(10,10,10,0.52) 48%, rgba(10,10,10,0.80) 100%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.0) 14%, rgba(0,0,0,0.0) 68%, rgba(0,0,0,0.92) 94%, rgba(0,0,0,1) 100%), radial-gradient(ellipse at 50% 32%, rgba(91,58,138,0.20) 0%, rgba(10,10,10,0.52) 48%, rgba(10,10,10,0.80) 100%)",
         }}
       />
     </div>

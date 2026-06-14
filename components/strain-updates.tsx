@@ -68,7 +68,7 @@ export function StrainUpdates({
       // `isolate` creates a stacking context so fixed-position parallax
       // layers behind us can't bleed through into our content; the
       // `overflow-hidden` clips our own flower layer to the panel.
-      className="relative isolate z-10 min-h-screen flex flex-col justify-center p-8 md:p-16 overflow-hidden bg-neutral-950"
+      className="relative isolate z-10 min-h-[100svh] flex flex-col justify-center p-8 md:p-16 overflow-hidden bg-neutral-950"
       aria-labelledby="strain-updates-heading"
     >
       {showBackdrop && (
