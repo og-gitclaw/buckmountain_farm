@@ -28,7 +28,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useSequentialVideoLoad } from "@/components/video-load-coordinator";
 
 export function VideoScene({
   src,
@@ -40,7 +39,6 @@ export function VideoScene({
   videoBlurPx = 0,
   videoBrightness = 1,
   videoSaturate = 1,
-  loadOrder = 0,
   children,
 }: {
   src: string;
@@ -50,8 +48,6 @@ export function VideoScene({
   videoBlurPx?: number;
   videoBrightness?: number;
   videoSaturate?: number;
-  /** Position in the homepage sequential video-load chain. */
-  loadOrder?: number;
   children?: React.ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -66,19 +62,10 @@ export function VideoScene({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
-  // Sequential load: this scene's bytes only stream once the prior video in
-  // the chain is buffered and this section is within ~1 viewport. `ready`
-  // flips true when buffered; playback is gated on it so the scene never
-  // jumps the download queue by trying to play un-buffered.
-  const { ready } = useSequentialVideoLoad({
-    order: loadOrder,
-    videoRef,
-    disabled: reducedMotion,
-  });
-
-  // Pause when offscreen. The whole point of splicing the hero into short
-  // loops is that there are several on the page — we only want the visible
-  // one decoding frames at any moment. Only play once buffered (`ready`).
+  // Pause when offscreen, play when in view. Calling play() on a
+  // preload="none" video is what triggers the download, so this scene pulls
+  // ZERO bytes on page land (poster only) and streams on demand exactly when
+  // the visitor scrolls it into view — never competing with the hero on land.
   useEffect(() => {
     const v = videoRef.current;
     const h = sectionRef.current;
@@ -87,26 +74,21 @@ export function VideoScene({
       v.pause();
       return;
     }
-    let intersecting = false;
-    const apply = () => {
-      if (intersecting && ready) {
-        v.play().catch(() => {
-          /* autoplay may be blocked on mobile data-saver; poster will show. */
-        });
-      } else {
-        v.pause();
-      }
-    };
     const io = new IntersectionObserver(
       ([entry]) => {
-        intersecting = entry.isIntersecting;
-        apply();
+        if (entry.isIntersecting) {
+          v.play().catch(() => {
+            /* autoplay may be blocked on mobile data-saver; poster will show. */
+          });
+        } else {
+          v.pause();
+        }
       },
       { threshold: 0.15 },
     );
     io.observe(h);
     return () => io.disconnect();
-  }, [reducedMotion, ready]);
+  }, [reducedMotion]);
 
   const alignClass =
     align === "center"

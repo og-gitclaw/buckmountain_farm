@@ -19,26 +19,23 @@
  *     collapse it to an instant snap
  *   - prefers-reduced-motion: the video never autoplays — the poster
  *     stays, copy is unaffected
- *   - preload="none" until the homepage load coordinator releases this slot
- *     in the sequential chain (after the video before it is buffered), so it
- *     never competes with the hero for bandwidth on page land
+ *   - preload="none": the video pulls ZERO bytes on page land (poster only).
+ *     It downloads on demand the moment it's played — which only happens once
+ *     the whole frame is in view — so it never competes with the hero for
+ *     bandwidth on initial load.
  *   - playback holds until the ENTIRE frame is in the viewport, so this loop
  *     never animates while another section's video is the focus of attention
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useSequentialVideoLoad } from "@/components/video-load-coordinator";
 
 export function FramedVideoCard({
   src,
   poster,
-  loadOrder = 1,
   children,
 }: {
   src: string;
   poster?: string;
-  /** Position in the homepage sequential video-load chain. */
-  loadOrder?: number;
   /** Copy block rendered above the frame — compose with
    *  .reveal-stagger-item children for the staggered entrance. */
   children?: React.ReactNode;
@@ -56,18 +53,12 @@ export function FramedVideoCard({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
-  // Sequential load: bytes only stream once the prior video is buffered and
-  // this frame is within ~1 viewport. `ready` flips true when buffered.
-  const { ready } = useSequentialVideoLoad({
-    order: loadOrder,
-    videoRef,
-    disabled: reducedMotion,
-  });
-
-  // Playback gate: only while the frame is FULLY in view AND its bytes are in
-  // memory. Threshold array lets us read intersectionRatio; >= 0.98 ≈ "the
-  // whole frame is inside the viewport". The rect fallback covers the (here
-  // impossible) case of a frame taller than the viewport.
+  // Playback gate: play only while the ENTIRE frame is in the viewport.
+  // Calling play() on a preload="none" video is what triggers the download,
+  // so the bytes stream exactly when the visitor reaches this section and
+  // never on page land. Threshold array lets us read intersectionRatio;
+  // >= 0.98 ≈ "the whole frame is inside the viewport". The rect fallback
+  // covers the (here impossible) case of a frame taller than the viewport.
   useEffect(() => {
     const frame = frameRef.current;
     const video = videoRef.current;
@@ -76,31 +67,27 @@ export function FramedVideoCard({
       video.pause();
       return;
     }
-    let fullyVisible = false;
-    const apply = () => {
-      if (fullyVisible && ready) {
-        setSettled(true);
-        video.play().catch(() => {
-          /* autoplay blocked — poster stays */
-        });
-      } else {
-        video.pause();
-      }
-    };
     const io = new IntersectionObserver(
       ([entry]) => {
         const vh = window.innerHeight || 1;
         const r = entry.boundingClientRect;
-        fullyVisible =
+        const fullyVisible =
           entry.intersectionRatio >= 0.98 ||
           (r.height > vh && r.top <= 0 && r.bottom >= vh);
-        apply();
+        if (fullyVisible) {
+          setSettled(true);
+          video.play().catch(() => {
+            /* autoplay blocked — poster stays */
+          });
+        } else {
+          video.pause();
+        }
       },
       { threshold: [0, 0.25, 0.5, 0.75, 0.9, 0.98, 1] },
     );
     io.observe(frame);
     return () => io.disconnect();
-  }, [reducedMotion, ready]);
+  }, [reducedMotion]);
 
   return (
     <section className="relative z-10 bg-neutral-950 px-6 md:px-16 pt-12 md:pt-16 pb-16 md:pb-24">
