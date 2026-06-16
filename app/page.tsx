@@ -41,6 +41,11 @@ export default async function Home({
 
   return (
     <main className="relative bg-neutral-950">
+      {/* Homepage video loading: the hero preloads eagerly (preload="auto")
+          and is the only video pulling bytes on page land. Every other
+          section video uses preload="none" + load-on-play, so it downloads
+          on demand the moment the visitor scrolls it into view — bandwidth
+          is allocated as needed, not all at once on initial load. */}
       {/* Diagnostic pill is OPT-IN only: it renders solely when the URL
           carries an explicit ?fx= param. Public visitors on the plain
           URL never see it; appending any ?fx= value (e.g. ?fx=none)

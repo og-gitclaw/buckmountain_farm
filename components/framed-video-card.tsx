@@ -7,8 +7,8 @@
  * The copy sits ABOVE the footage in normal page flow and the video
  * renders inside a rounded, inset frame: an object you look at, not an
  * environment that takes over the viewport. No scroll-linked playback —
- * the loop simply plays while the frame is on screen and pauses off
- * screen, so there is no keyframe-density requirement on the encode and
+ * the loop simply plays while the frame is FULLY on screen and pauses
+ * otherwise, so there is no keyframe-density requirement on the encode and
  * nothing for the visitor to "drive."
  *
  * Motion notes:
@@ -19,7 +19,12 @@
  *     collapse it to an instant snap
  *   - prefers-reduced-motion: the video never autoplays — the poster
  *     stays, copy is unaffected
- *   - preload="metadata" only; bytes stream when the section approaches
+ *   - preload="none": the video pulls ZERO bytes on page land (poster only).
+ *     It downloads on demand the moment it's played — which only happens once
+ *     the whole frame is in view — so it never competes with the hero for
+ *     bandwidth on initial load.
+ *   - playback holds until the ENTIRE frame is in the viewport, so this loop
+ *     never animates while another section's video is the focus of attention
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -48,6 +53,12 @@ export function FramedVideoCard({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
+  // Playback gate: play only while the ENTIRE frame is in the viewport.
+  // Calling play() on a preload="none" video is what triggers the download,
+  // so the bytes stream exactly when the visitor reaches this section and
+  // never on page land. Threshold array lets us read intersectionRatio;
+  // >= 0.98 ≈ "the whole frame is inside the viewport". The rect fallback
+  // covers the (here impossible) case of a frame taller than the viewport.
   useEffect(() => {
     const frame = frameRef.current;
     const video = videoRef.current;
@@ -58,7 +69,12 @@ export function FramedVideoCard({
     }
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        const vh = window.innerHeight || 1;
+        const r = entry.boundingClientRect;
+        const fullyVisible =
+          entry.intersectionRatio >= 0.98 ||
+          (r.height > vh && r.top <= 0 && r.bottom >= vh);
+        if (fullyVisible) {
           setSettled(true);
           video.play().catch(() => {
             /* autoplay blocked — poster stays */
@@ -67,7 +83,7 @@ export function FramedVideoCard({
           video.pause();
         }
       },
-      { threshold: 0.35 },
+      { threshold: [0, 0.25, 0.5, 0.75, 0.9, 0.98, 1] },
     );
     io.observe(frame);
     return () => io.disconnect();
@@ -88,7 +104,7 @@ export function FramedVideoCard({
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             className={`absolute inset-0 h-full w-full object-cover ${
               settled ? "video-settle" : ""
             }`}

@@ -149,7 +149,11 @@ export function VideoParallaxHero({
           loop
           playsInline
           autoPlay
-          preload="metadata"
+          // Priority above-the-fold video — preload aggressively so it's the
+          // first (and, on land, the ONLY) video pulling bytes. Every
+          // below-fold video uses preload="none" + load-on-play, so nothing
+          // else downloads until the visitor scrolls to it.
+          preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
           // Only build a filter string when something is actually non-identity.
           // At defaults this is undefined → no compositing filter, raw footage.

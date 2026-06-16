@@ -62,9 +62,10 @@ export function VideoScene({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
-  // Pause when offscreen. The whole point of splicing the hero into short
-  // loops is that there are several on the page — we only want the visible
-  // one decoding frames at any moment.
+  // Pause when offscreen, play when in view. Calling play() on a
+  // preload="none" video is what triggers the download, so this scene pulls
+  // ZERO bytes on page land (poster only) and streams on demand exactly when
+  // the visitor scrolls it into view — never competing with the hero on land.
   useEffect(() => {
     const v = videoRef.current;
     const h = sectionRef.current;
@@ -108,8 +109,11 @@ export function VideoScene({
         muted
         loop
         playsInline
-        autoPlay
-        preload="metadata"
+        // No autoPlay + preload="none": the section shows its poster and
+        // pulls zero video bytes until the load coordinator releases this
+        // slot in the sequential chain. Playback is started imperatively by
+        // the IntersectionObserver above once buffered + in view.
+        preload="none"
         className="absolute inset-0 h-full w-full object-cover"
         style={
           videoBlurPx === 0 && videoBrightness === 1 && videoSaturate === 1
