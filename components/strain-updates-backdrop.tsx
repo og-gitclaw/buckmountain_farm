@@ -12,7 +12,7 @@
  *
  * The root div is `absolute inset-0`, so its bounding box tracks the
  * section — we drive the parallax off the root's own rect, no parent ref
- * needed. The layer is 160% tall with -30% overscan so the ±travel shift
+ * needed. The layer is 170% tall with -35% overscan so the ±travel shift
  * never exposes an edge inside the section's overflow-hidden box.
  *
  * Motion safety: prefers-reduced-motion disables the transform (image
@@ -42,15 +42,13 @@ export function StrainUpdatesBackdrop() {
         0,
         Math.min(1, (vh - rect.top) / (vh + rect.height)),
       );
-      // 2026-06-16: 0.28 → 0.55 per Brendon — "doesn't move enough,"
-      // wants more letsgopaint.space-style drift. Roughly doubled the
-      // travel, so the overscan buffer (and section height multiplier
-      // in JSX) is doubled to match: -30% top + 160% layer height = 30%
-      // buffer above and below, ceiling is 0.60 (±travel/2 must stay
-      // inside the 30% buffer or the image edge shows inside the section
-      // box). At 0.55 we're at ±27.5% — 2.5% safety margin, same
-      // proportional safety as the prior 0.28-in-15% combo.
-      const travel = rect.height * 0.55;
+      // 2026-06-16: 0.28 → 0.55 → 0.65 per Brendon, dialing toward the
+      // letsgopaint.space-style drift. Buffer keeps pace: -35% top + 170%
+      // layer height = 35% buffer above and below, ceiling is 0.70 (±travel/2
+      // must stay inside the 35% buffer or the image edge shows inside the
+      // section box). At 0.65 we're at ±32.5% — 2.5% safety margin, same
+      // proportional safety as the prior 0.55-in-30% combo.
+      const travel = rect.height * 0.65;
       return (0.5 - progress) * travel;
     },
     apply: (y) => {
@@ -67,7 +65,7 @@ export function StrainUpdatesBackdrop() {
     <div ref={rootRef} aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       <div
         ref={layerRef}
-        className="absolute inset-x-0 -top-[30%] h-[160%] w-full will-change-transform"
+        className="absolute inset-x-0 -top-[35%] h-[170%] w-full will-change-transform"
       >
         <img
           src="/assets/backdrops/01-hybrid.jpg"
