@@ -12,7 +12,7 @@
  *
  * The root div is `absolute inset-0`, so its bounding box tracks the
  * section — we drive the parallax off the root's own rect, no parent ref
- * needed. The layer is 130% tall with -15% overscan so the ±travel shift
+ * needed. The layer is 170% tall with -35% overscan so the ±travel shift
  * never exposes an edge inside the section's overflow-hidden box.
  *
  * Motion safety: prefers-reduced-motion disables the transform (image
@@ -29,8 +29,13 @@ export function StrainUpdatesBackdrop() {
 
   // Smoothed (lerped) parallax — the bud photo trails the scroll instead
   // of snapping to it. Shared damping = same feel as the hero + cards.
+  // 2026-06-18: ease 0.12 (hook default) → 0.08 per Brendon — "not as smooth
+  // as I would like." Slower closure on each frame = longer inertial trail,
+  // ~150ms half-life instead of ~90ms. The bud drifts past while the cards
+  // march, instead of welding itself to scroll.
   useSmoothParallax({
     triggerRef: rootRef,
+    ease: 0.08,
     getTarget: () => {
       const root = rootRef.current;
       if (!root) return 0;
@@ -42,10 +47,13 @@ export function StrainUpdatesBackdrop() {
         0,
         Math.min(1, (vh - rect.top) / (vh + rect.height)),
       );
-      // 2026-06-11: 0.22 → 0.28 per Brendon — livelier drift on scroll.
-      // Hard ceiling is 0.30 (±travel/2 must stay inside the 15% overscan
-      // or the image edge shows inside the section box).
-      const travel = rect.height * 0.28;
+      // 2026-06-16: 0.28 → 0.55 → 0.65 per Brendon, dialing toward the
+      // letsgopaint.space-style drift. Buffer keeps pace: -35% top + 170%
+      // layer height = 35% buffer above and below, ceiling is 0.70 (±travel/2
+      // must stay inside the 35% buffer or the image edge shows inside the
+      // section box). At 0.65 we're at ±32.5% — 2.5% safety margin, same
+      // proportional safety as the prior 0.55-in-30% combo.
+      const travel = rect.height * 0.65;
       return (0.5 - progress) * travel;
     },
     apply: (y) => {
@@ -62,7 +70,7 @@ export function StrainUpdatesBackdrop() {
     <div ref={rootRef} aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       <div
         ref={layerRef}
-        className="absolute inset-x-0 -top-[15%] h-[130%] w-full will-change-transform"
+        className="absolute inset-x-0 -top-[35%] h-[170%] w-full will-change-transform"
       >
         <img
           src="/assets/backdrops/01-hybrid.jpg"
