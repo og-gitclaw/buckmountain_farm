@@ -29,8 +29,13 @@ export function StrainUpdatesBackdrop() {
 
   // Smoothed (lerped) parallax — the bud photo trails the scroll instead
   // of snapping to it. Shared damping = same feel as the hero + cards.
+  // 2026-06-18: ease 0.12 (hook default) → 0.08 per Brendon — "not as smooth
+  // as I would like." Slower closure on each frame = longer inertial trail,
+  // ~150ms half-life instead of ~90ms. The bud drifts past while the cards
+  // march, instead of welding itself to scroll.
   useSmoothParallax({
     triggerRef: rootRef,
+    ease: 0.08,
     getTarget: () => {
       const root = rootRef.current;
       if (!root) return 0;
