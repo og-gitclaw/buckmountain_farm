@@ -3,6 +3,15 @@
 Two old surfaces deep-link into Buck Mountain content. We need 301s on
 *both ends* to preserve SEO equity and not break existing inbound links.
 
+> **2026-07-15 correction — buckmountaincannabis.com is NOT Squarespace.**
+> This doc previously instructed "Squarespace → Settings → Advanced → URL
+> Mappings". That panel does not exist for this site and never did.
+> `LEGACY_SITE_AUDIT.md`'s own 2026-05-25 correction (openclaw rip, commit
+> `a5ee791`) established the legacy site is a **Next.js SPA behind
+> Cloudflare**. §A below has been rewritten to match. The paths in §A are
+> **unverified guesses** — see the accuracy note there before pasting any of
+> them anywhere.
+
 ## What's already configured (in this repo)
 
 `next.config.ts` → `async redirects()` covers the case where someone
@@ -25,35 +34,52 @@ hits a legacy path on **buckmountain.farm** itself:
 
 ## What you still need to do (from the home machine)
 
-### A. buckmountaincannabis.com (Squarespace)
+### A. buckmountaincannabis.com (Next.js SPA behind Cloudflare)
 
-The Squarespace dashboard has a URL-redirects panel at:
+**Stack, as established by the 2026-05-25 openclaw rip (`a5ee791`) and
+recorded in `LEGACY_SITE_AUDIT.md`:** the legacy site was already migrated
+off whatever it used to run on and is now a **Next.js SPA served from the
+same host, fronted by Cloudflare** (which bot-blocks headless Playwright —
+`curl` with a real browser UA gets through; assets resolve at `/images/*`).
 
-```
-Settings → Advanced → URL Mappings
-```
+There is therefore **no vendor redirects panel to paste a block into**. The
+three real options, in the order they're worth considering:
 
-Paste this block in (Squarespace's format is `oldpath -> newpath [301-or-302]`):
+1. **Point the legacy domain at us.** DNS for buckmountaincannabis.com →
+   buckmountain.farm, and every legacy path is then handled by this repo's
+   `next.config.ts redirects()`. Simplest, one place to maintain, and it makes
+   the on-domain rules already in `next.config.ts` do real work instead of
+   only catching hand-typed URLs. Costs the legacy origin.
+2. **Cloudflare Bulk Redirects / Redirect Rules** on the legacy zone. Keeps
+   the legacy origin alive; rules live in the Cloudflare dashboard.
+3. **Edit the legacy Next app's own `next.config`** and redeploy it. Requires
+   access to that app's repo + deploy pipeline — unknown whether Brendon has
+   either. Worth checking before assuming.
 
-```
-/ -> https://buckmountain.farm/ 301
-/blog -> https://buckmountain.farm/blog 301
-/blog/[slug] -> https://buckmountain.farm/blog/[slug] 301
-/about -> https://buckmountain.farm/about 301
-/contact -> https://buckmountain.farm/contact 301
-/products -> https://buckmountain.farm/strains 301
-/products/[slug] -> https://buckmountain.farm/strains/[slug] 301
-/shop -> https://buckmountain.farm/store 301
-/wholesale -> https://buckmountain.farm/wholesale 301
-/coa -> https://buckmountain.farm/coa 301
-```
+> **Accuracy note — the path list below is UNVERIFIED.** It is inherited from
+> the era when this doc assumed Squarespace, and the paths were guessed from
+> that vendor's conventions, not read off the legacy site. As of this writing
+> only **`/blog`** is confirmed to exist (search hit, per `LEGACY_SITE_AUDIT.md`).
+> `/about`, `/contact`, `/products`, `/shop`, `/wholesale`, `/coa` are exactly
+> the "invisible pages" that audit's §"What the Chrome MCP rip needs to fill"
+> item 7 lists as **still needing confirmation**. Redirecting a path that never
+> existed is harmless-but-useless; the risk is the opposite — a real legacy URL
+> absent from this list silently loses its equity.
+>
+> **Do this first, from a machine that gets a response** (the sandbox returns
+> empty; Cloudflare 403s headless):
+> ```
+> curl -sA "<real-browser-UA>" https://buckmountaincannabis.com/sitemap.xml
+> curl -sA "<real-browser-UA>" https://buckmountaincannabis.com/robots.txt
+> ```
+> Build the redirect map from the **actual** sitemap. Do not ship this guessed
+> list as-is.
 
-Once those are in place, Squarespace serves the 301 to anyone hitting
-the legacy host — Google replaces the legacy URL in its index with the
-new buckmountain.farm URL over the next 30-90 days.
+Whichever option is chosen, the destination side is the mapping already
+encoded in `next.config.ts redirects()` — reuse it rather than re-deriving it.
 
-**Important:** do NOT take down the Squarespace site until the 301s have
-propagated through Google. ~90 days minimum, ~180 to be safe.
+**Important:** do NOT take the legacy site down until the 301s have propagated
+through Google. ~90 days minimum, ~180 to be safe.
 
 ### B. cbd.restaurant (BigCommerce)
 

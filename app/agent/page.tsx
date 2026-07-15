@@ -11,13 +11,15 @@
  *   - Trigger a new-product notification blast to that dispensary's
  *     buyer (via Alpine IQ — SMS + Web Push)
  *
- * Auth wall: this page is currently unauthenticated. Google SSO lands
- * via /api/auth/google (see app/api/auth/google/route.ts). Sessions are
- * cookie-based, 30-day rolling.
+ * Auth wall: DONE (2026-07-15) — `middleware.ts` gates all of /agent and
+ * /api/agent on a valid `bm_session` cookie, redirecting to Google SSO
+ * (/api/auth/google) when absent. Sessions are cookie-based, 30-day rolling.
+ * This resolves the former "TODO(P3): wire actual session check".
  *
- * TODO(P3): wire actual session check + redirect to /api/auth/google
- * when no session cookie present. For now this is a layout stub so the
- * route resolves and Brendon can preview the IA.
+ * Any session holder reaches this portal; there is no per-rep authorization
+ * yet (no check that a rep owns the dispensary they're viewing). Roles are
+ * assigned in /admin/agents but are not enforced here — see the report on
+ * branch feat/admin-auth-gates-2026-07-15.
  */
 
 import Link from "next/link";

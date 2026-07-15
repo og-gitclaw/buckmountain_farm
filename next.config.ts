@@ -40,20 +40,29 @@ const config: NextConfig = {
    * Legacy URL bridge.
    *
    * Two old surfaces feed traffic into buckmountain.farm:
-   *   1. Squarespace-era buckmountaincannabis.com — common Squarespace
-   *      paths get aliased to our equivalents.
+   *   1. buckmountaincannabis.com — legacy paths aliased to our equivalents.
    *   2. cbd.restaurant BigCommerce product URLs — the rosin disposable
    *      vape SKU was the most-linked. Single redirect that catches the
    *      pattern.
    *
+   * NOTE (2026-07-15): the source paths below were guessed from Squarespace
+   * conventions back when we believed the legacy site was Squarespace. It is
+   * not — it's a Next.js SPA behind Cloudflare (LEGACY_SITE_AUDIT.md, openclaw
+   * rip a5ee791). Only /blog is confirmed to exist on the legacy origin; the
+   * rest are UNVERIFIED and pending a real sitemap.xml pull. They are left in
+   * place because an alias for a path that never existed costs nothing, and
+   * changing the destination mapping is a business call. Do not treat this
+   * list as evidence of the legacy site's URL structure.
+   *
    * These activate when someone hits the path on buckmountain.farm itself.
    * For redirects on the OLD origin (buckmountaincannabis.com,
-   * cbd.restaurant) you need to configure those servers separately — see
-   * handoff/LEGACY_REDIRECTS.md.
+   * cbd.restaurant) those hosts must be configured separately — see
+   * handoff/LEGACY_REDIRECTS.md §A for the three real options.
    */
   async redirects() {
     return [
-      // Squarespace conventions on the legacy site
+      // Guessed-from-Squarespace-conventions paths — unverified against the
+      // real (Next.js SPA) legacy origin. See the note above.
       { source: "/products",          destination: "/strains",         permanent: true },
       { source: "/products/:slug*",   destination: "/strains/:slug*",  permanent: true },
       { source: "/shop",              destination: "/store",           permanent: true },

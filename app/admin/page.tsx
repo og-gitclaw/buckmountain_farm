@@ -1,9 +1,14 @@
 /**
  * /admin — admin landing. Quick-access tiles for the back-office work.
  *
- * Auth: relies on Vercel deployment protection until session checks are
- * wired. Super-admin-only tiles (lib/super-admin) only render for
+ * Auth: `middleware.ts` requires a valid session for all of /admin — this
+ * page is never reachable logged-out, so `getSession()` here is guaranteed
+ * non-null and is used only to decide what to render.
+ *
+ * Super-admin-only tiles (lib/super-admin) only render for
  * mustwemuse@/bmdistributionllc@ — non-super-admins don't see the link.
+ * Note that hiding the tile is presentation, not enforcement: the gate that
+ * actually stops a non-super-admin lives on /admin/push-throttle itself.
  */
 
 import Link from "next/link";

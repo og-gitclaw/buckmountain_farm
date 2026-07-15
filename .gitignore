@@ -18,3 +18,8 @@ public/assets/video/hero-full.mp4
 
 # Local Claude preview launch config (per-machine)
 .claude/
+
+# Playwright screenshot output + CLI scratch (local FX-review artifacts, ~27MB).
+# Regenerated on demand; never a build input.
+output/
+.playwright-cli/
