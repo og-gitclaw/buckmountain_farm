@@ -9,11 +9,15 @@
 
 import Link from "next/link";
 import { STRAINS } from "@/data/strains";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 const STATUSES = ["live", "low-stock", "sold-out", "incoming"] as const;
 const SOURCE_KINDS = ["manual", "instagram", "weedmaps", "leafly", "nabis"] as const;
 
-export default function AdminDropsCompose() {
+export default async function AdminDropsCompose() {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
       <section className="pt-28 md:pt-32 pb-12 px-6 md:px-12 max-w-2xl mx-auto">

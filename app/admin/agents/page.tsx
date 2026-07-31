@@ -11,6 +11,7 @@
 
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -60,6 +61,9 @@ export default async function AdminAgents({
 }: {
   searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   const sp = await searchParams;
   const { rows, stub } = await loadAgents();
 

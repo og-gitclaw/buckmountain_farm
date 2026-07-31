@@ -84,6 +84,24 @@ export function middleware(req: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+/**
+ * `/api/billing/:path*` and `/api/payment-config` are the hosting-billing kit's
+ * two browser-facing endpoints. They live outside /api/admin (the kit's paths
+ * are fixed — the card form fetches them by name), so they are listed here
+ * explicitly. Each route ALSO checks the session itself; this matcher entry is
+ * defence in depth, not the only lock.
+ *
+ * `/api/cron/billing` is deliberately NOT here: it authenticates with
+ * `Authorization: Bearer $CRON_SECRET` (timing-safe, fail-closed), the way
+ * Vercel Cron calls it.
+ */
 export const config = {
-  matcher: ["/admin/:path*", "/agent/:path*", "/api/admin/:path*", "/api/agent/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/agent/:path*",
+    "/api/admin/:path*",
+    "/api/agent/:path*",
+    "/api/billing/:path*",
+    "/api/payment-config",
+  ],
 };

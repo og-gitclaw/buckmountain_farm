@@ -17,6 +17,7 @@ import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { isSuperAdmin } from "@/lib/super-admin";
+import { requireHostingAccess } from "@/lib/billing/gate";
 import { ClientThrottleForm } from "./client-form";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,11 @@ export default async function PushThrottlePage() {
   const session = await getSession();
   if (!session) redirect("/api/auth/google?return_to=/admin/push-throttle");
   if (!isSuperAdmin(session)) notFound();
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships. (Super-admins are
+  // on the exemption list anyway — this is here for consistency, so a future
+  // reader doesn't find one admin page without the wall and assume a bug.)
+  await requireHostingAccess(session.email);
 
   const state = await loadState();
 

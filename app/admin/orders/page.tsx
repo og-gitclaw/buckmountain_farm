@@ -6,6 +6,7 @@
  */
 
 import Link from "next/link";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 async function getOrders() {
   try {
@@ -25,6 +26,9 @@ async function getOrders() {
 }
 
 export default async function AdminOrders() {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   const data = await getOrders();
   const skipped = data?.skipped === true;
   const orders = Array.isArray(data?.orders) ? data.orders : [];

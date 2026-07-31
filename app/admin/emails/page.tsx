@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 // Admin pages are per-user, behind auth, and need fresh data. Forcing
 // dynamic also decouples deploys from "schema migration must be applied
@@ -58,6 +59,9 @@ const STATUS_TINT: Record<string, string> = {
 };
 
 export default async function AdminEmails() {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   const { rows, stub } = await loadRows();
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8 md:p-12 pt-28 md:pt-32">

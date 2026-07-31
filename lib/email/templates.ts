@@ -34,7 +34,10 @@ export type TemplateName =
   | "order-canceled"
   | "review-request"
   | "prize-winner"
-  | "health-alert";              // admin-side
+  | "health-alert"               // admin-side
+  | "billing-card-needed"        // hosting billing → the billing contact
+  | "billing-receipt"            // hosting billing → the billing contact
+  | "billing-failed";            // hosting billing → the billing contact
 
 export type TemplatePayload = {
   welcome: { recipient_name?: string };
@@ -132,6 +135,35 @@ export type TemplatePayload = {
     detail: string;
     timestamp: string;
   };
+  /**
+   * Hosting-billing notices. Amounts arrive PRE-FORMATTED as dollar strings
+   * from lib/billing/plans.ts → formatUsd(); the templates never do money
+   * arithmetic, so a number can't drift between the card and the receipt.
+   */
+  "billing-card-needed": {
+    org_name: string;
+    monthly_amount: string;
+    billing_url: string;
+    statement_descriptor: string;
+  };
+  "billing-receipt": {
+    org_name: string;
+    total_amount: string;
+    lines: { label: string; amount: string }[];
+    paid_on: string;
+    period_end: string;
+    charge_id?: string | null;
+    billing_url: string;
+    statement_descriptor: string;
+  };
+  "billing-failed": {
+    org_name: string;
+    total_amount: string;
+    lines: { label: string; amount: string }[];
+    reason: string;
+    billing_url: string;
+    statement_descriptor: string;
+  };
 };
 
 type Rendered = { subject: string; html: string; text: string };
@@ -143,6 +175,25 @@ function greeting(name?: string): string {
 /** Centralized list of supported channels for SMS-style copy footers. */
 const STOP_FOOTER =
   "Reply STOP to opt out, HELP for help. Msg & data rates may apply.";
+
+/**
+ * Line-item table for the hosting-billing receipts. Amounts are already
+ * formatted strings — see the TemplatePayload note — so this only lays them
+ * out. Table-based for the same Outlook reason as the shell in render.ts.
+ */
+function billingLines(lines: { label: string; amount: string }[], total: string): string {
+  const rows = lines
+    .map(
+      (l) =>
+        `<tr><td style="padding:6px 0;font-size:15px;color:#555;">${escapeHtml(l.label)}</td>` +
+        `<td style="padding:6px 0;font-size:15px;color:#1a1a1a;text-align:right;">${escapeHtml(l.amount)}</td></tr>`,
+    )
+    .join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 16px;">
+${rows}
+<tr><td style="padding:10px 0 0;border-top:1px solid #e5e0d7;font-size:15px;font-weight:700;color:#1a1a1a;">Total</td><td style="padding:10px 0 0;border-top:1px solid #e5e0d7;font-size:15px;font-weight:700;color:#c9a24a;text-align:right;">${escapeHtml(total)}</td></tr>
+</table>`;
+}
 
 export const TEMPLATES: {
   [K in TemplateName]: (vars: TemplatePayload[K]) => Rendered;
@@ -553,6 +604,114 @@ Must be 21+. CA only.`,
       body: `Integration alert: ${v.integration}
 ${v.detail}
 At: ${v.timestamp}`,
+    }),
+  }),
+
+  // ── Hosting billing ────────────────────────────────────────────────────
+  // Three notices, all to the billing contact. Every send is also written to
+  // `message_log` by lib/billing/emails.ts so the money paper trail survives
+  // independently of the SES delivery log.
+
+  "billing-card-needed": (v) => ({
+    subject: `Add a card to keep ${v.org_name}'s website running`,
+    html: renderHtml({
+      preheader: "Your 30 free days are up — nothing has been charged.",
+      bodyBlocks: [
+        h1("Your 30 free days are up"),
+        p(
+          `The first month of ${escapeHtml(v.org_name)}'s website was on us. To keep it online, add a card on the billing page.`,
+        ),
+        p(
+          `It's <strong>${escapeHtml(v.monthly_amount)} a month</strong>, and you can cancel any time.`,
+        ),
+        p("<strong>Nothing has been charged.</strong> The first payment only happens after you save a card."),
+        divider(),
+        p(
+          `On your bank or card statement this appears as <strong>${escapeHtml(v.statement_descriptor)}</strong>.`,
+          "#555555",
+        ),
+      ],
+      cta: { label: "Add a card", url: v.billing_url },
+    }),
+    text: renderText({
+      body: `Your 30 free days are up.
+
+The first month of ${v.org_name}'s website was on us. To keep it online, add a card on the billing page. It's ${v.monthly_amount} a month and you can cancel any time.
+
+Nothing has been charged. The first payment only happens after you save a card.
+
+On your bank or card statement this appears as ${v.statement_descriptor}.`,
+      cta: { label: "Add a card", url: v.billing_url },
+    }),
+  }),
+
+  "billing-receipt": (v) => ({
+    subject: `Receipt — ${v.total_amount} for ${v.org_name}'s website`,
+    html: renderHtml({
+      preheader: `Payment received · ${v.total_amount}`,
+      bodyBlocks: [
+        h1("Thank you — payment received"),
+        p(`We received ${escapeHtml(v.total_amount)} on ${escapeHtml(v.paid_on)}. Here's what it covered:`),
+        billingLines(v.lines, v.total_amount),
+        p(`Service period: ${escapeHtml(v.paid_on)} through ${escapeHtml(v.period_end)}.`, "#555555"),
+        divider(),
+        p(
+          `On your bank or card statement this appears as <strong>${escapeHtml(v.statement_descriptor)}</strong>.`,
+          "#555555",
+        ),
+        ...(v.charge_id ? [p(`Reference: ${escapeHtml(v.charge_id)}`, "#888888")] : []),
+      ],
+      cta: { label: "See your billing statement", url: v.billing_url },
+    }),
+    text: renderText({
+      body: `Thank you — payment received.
+
+We received ${v.total_amount} on ${v.paid_on}. It covered:
+
+${v.lines.map((l) => `${l.label}: ${l.amount}`).join("\n")}
+Total: ${v.total_amount}
+
+Service period: ${v.paid_on} through ${v.period_end}.
+
+On your bank or card statement this appears as ${v.statement_descriptor}.${v.charge_id ? `\nReference: ${v.charge_id}` : ""}`,
+      cta: { label: "See your billing statement", url: v.billing_url },
+    }),
+  }),
+
+  "billing-failed": (v) => ({
+    subject: `We couldn't process ${v.total_amount} for ${v.org_name}'s website`,
+    html: renderHtml({
+      preheader: "Nothing was taken and the site is still up.",
+      bodyBlocks: [
+        h1("Your card was declined"),
+        p(`We tried to charge ${escapeHtml(v.total_amount)} and the card on file didn't go through.`),
+        billingLines(v.lines, v.total_amount),
+        p(`The bank said: ${escapeHtml(v.reason)}`, "#555555"),
+        p(
+          "<strong>Nothing was taken and the site is still up.</strong> We'll try again once a day. Updating the card on the billing page is the quickest fix.",
+        ),
+        divider(),
+        p(
+          `On your bank or card statement this appears as <strong>${escapeHtml(v.statement_descriptor)}</strong>.`,
+          "#555555",
+        ),
+      ],
+      cta: { label: "Update the card", url: v.billing_url },
+    }),
+    text: renderText({
+      body: `Your card was declined.
+
+We tried to charge ${v.total_amount} and the card on file didn't go through.
+
+${v.lines.map((l) => `${l.label}: ${l.amount}`).join("\n")}
+Total: ${v.total_amount}
+
+The bank said: ${v.reason}
+
+Nothing was taken and the site is still up. We'll try again once a day. Updating the card on the billing page is the quickest fix.
+
+On your bank or card statement this appears as ${v.statement_descriptor}.`,
+      cta: { label: "Update the card", url: v.billing_url },
     }),
   }),
 };

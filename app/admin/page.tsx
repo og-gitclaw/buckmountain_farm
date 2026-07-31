@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { isSuperAdmin } from "@/lib/super-admin";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ const TILES = [
   { href: "/admin/qr-sheets", title: "QR sheets", desc: "Ingested print sheets + token counts." },
   { href: "/admin/emails", title: "Outbound emails", desc: "SES transactional log + status + test send." },
   { href: "/admin/agents", title: "Agents", desc: "Role assignment + active toggle for portal users." },
+  { href: "/admin/billing", title: "Billing", desc: "Hosting plan, card on file, and payment history." },
   { href: "/agent", title: "Agent portal", desc: "BMH-parity field-rep view." },
 ];
 
@@ -37,6 +39,9 @@ const SUPER_ADMIN_TILES = [
 ];
 
 export default async function AdminHome() {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   const session = await getSession();
   const superAdmin = isSuperAdmin(session);
 

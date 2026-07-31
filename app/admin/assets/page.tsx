@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { dbConfigured, getSql } from "@/lib/db";
+import { requireAdminHostingAccess } from "@/lib/billing/gate";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -50,6 +51,9 @@ function humanSize(bytes: number): string {
 }
 
 export default async function AdminAssetsPage() {
+  // Hosting wall: funnels an unpaid account to /admin/billing. No-op while
+  // BILLING_ENABLED is unset, which is how this kit ships.
+  await requireAdminHostingAccess();
   const { rows, stub } = await loadAssets();
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8 md:p-12 pt-28 md:pt-32">
