@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { dbConfigured } from "@/lib/db";
 import { cloverEnv, stubMode } from "@/lib/billing/clover";
+import { laneHoldMessage } from "@/lib/billing/declines";
 import { addonCatalogWith, billingEnabled, getBillingSnapshot } from "@/lib/billing/lifecycle";
 import { BASE_PLAN, formatUsd } from "@/lib/billing/plans";
 import { STATEMENT_DESCRIPTOR } from "@/lib/billing/statement";
@@ -102,9 +103,12 @@ export default async function BillingPage() {
   // A live-looking deployment still wired to the sandbox would take pretend
   // money silently. Say so on the page rather than let it pass for real.
   const sandbox = !testMode && cloverEnv() === "sandbox";
+  // A hard/fix_card decline holds the retry lane: retrying the same card
+  // cannot succeed, and every attempt still puts a hold on the client's bank.
+  const laneHold = laneHoldMessage(sub.lastDeclineKind);
   // Money is owed right now (trial over / renewal due / a decline to retry).
   const chargeDue = Boolean(
-    sub.cardOnFile && sub.nextChargeAt && sub.nextChargeAt.getTime() <= Date.now(),
+    !laneHold && sub.cardOnFile && sub.nextChargeAt && sub.nextChargeAt.getTime() <= Date.now(),
   );
 
   return (
@@ -126,6 +130,7 @@ export default async function BillingPage() {
           lastChargeStatus={sub.lastChargeStatus}
           cardOnFile={sub.cardOnFile}
           totalCents={monthlyTotalCents}
+          laneHold={laneHold}
         />
 
         {/* ── The plan ───────────────────────────────────────────────────── */}
@@ -372,6 +377,7 @@ function StatusBanner({
   lastChargeStatus,
   cardOnFile,
   totalCents,
+  laneHold,
 }: {
   status: string;
   trialExpiresAt: Date;
@@ -379,21 +385,32 @@ function StatusBanner({
   lastChargeStatus: string | null;
   cardOnFile: boolean;
   totalCents: number;
+  laneHold: string | null;
 }) {
   if (status === "past_due") {
     return (
       <div className="mt-8 rounded-lg border border-rose-500/40 bg-rose-500/10 p-6">
         <p className="text-xl font-bold">Your last payment didn&apos;t go through</p>
         <p className="mt-2 text-sm text-neutral-200 max-w-xl">
-          Your site is still up and nothing extra has been charged. We try again once a day.
-          Updating the card below is usually the quickest fix.
+          {laneHold ??
+            "Your site is still up and nothing extra has been charged. We'll retry automatically " +
+              "in a few days — updating the card below is usually the quickest fix."}
+        </p>
+        <p className="mt-2 text-xs text-neutral-400 max-w-xl">
+          A declined attempt can still show as a pending charge in your bank app — that hold was
+          never collected and the bank releases it on its own.
         </p>
         {lastChargeStatus && <p className="mt-2 text-xs text-neutral-400">{lastChargeStatus}</p>}
-        <form action={retryPayment} className="mt-4">
-          <button className="rounded-md bg-white text-black px-4 py-2 text-sm font-semibold hover:bg-neutral-200 transition">
-            Try the payment again
-          </button>
-        </form>
+        {/* A held lane hides the button entirely: retrying the same card cannot
+            succeed, and every attempt still puts a hold on the client's bank. */}
+        {!laneHold && (
+          <form action={retryPayment} className="mt-4">
+            <button className="rounded-md bg-white text-black px-4 py-2 text-sm font-semibold hover:bg-neutral-200 transition">
+              Try the payment again
+            </button>
+            <p className="mt-2 text-xs text-neutral-400">Limited to a few attempts per day.</p>
+          </form>
+        )}
       </div>
     );
   }

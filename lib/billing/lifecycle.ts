@@ -7,11 +7,21 @@
  *   trial ends + card  → charged → active, next charge +30 days
  *   trial ends, no card→ pending_payment + one "add a card" email
  *   renewal due        → charged → next charge +30 days
- *   anything declines  → past_due, next charge date NOT advanced, so the
- *                        daily sweep keeps retrying
+ *   soft decline       → past_due; retried on a spaced ladder (declines.ts),
+ *                        never more than the daily attempt cap
+ *   hard/fix_card      → past_due with the retry lane HELD — nothing retries
+ *                        until the card is saved again
  *
  * Every attempt — paid or declined — writes a billing_charges row with a
  * line-item snapshot. That ledger is the billing statement.
+ *
+ * HARD RULES (2026-08-24 incident on hbvets — six live auths in one evening):
+ *   - at most MAX_ATTEMPTS_PER_DAY attempts reach Clover per day, all
+ *     triggers combined, with a cooldown between them;
+ *   - an attempt claims its ledger row BEFORE touching the network, so two
+ *     racing invocations can never both charge;
+ *   - a held lane (hard/fix_card decline) refuses even manual retries until
+ *     the card changes.
  *
  * ADAPTED FOR THIS SITE: the reference kit is Drizzle; buckmountain.farm has
  * no ORM, it talks to Neon in raw SQL through lib/db.ts. So the reads here use
@@ -23,6 +33,15 @@
 import "server-only";
 import { dbConfigured, getPool, getSql } from "@/lib/db";
 import { chargeSubscription, vaultCard } from "./clover";
+import {
+  ATTEMPT_COOLDOWN_MS,
+  MAX_ATTEMPTS_PER_DAY,
+  MAX_RETRIES,
+  classifyDecline,
+  dunningStepFor,
+  laneHoldMessage,
+  nextRetryAt,
+} from "./declines";
 import { sendCardNeededEmail, sendPaymentFailedEmail, sendReceiptEmail } from "./emails";
 import { AGENT_ADDONS, CYCLE_DAYS, TRIAL_DAYS, findAddon, monthlyTotalCents } from "./plans";
 import { buildStatement, chargeDescription, type Statement, type StatementLine } from "./statement";
@@ -115,6 +134,14 @@ export type SubscriptionRow = {
   cloverSourceId: string | null;
   nextChargeAt: Date | null;
   lastChargeStatus: string | null;
+  /** Failed automated attempts this delinquency; resets when a charge settles. */
+  retryCount: number;
+  /** When the sweep may try a soft-declined card again. Null = not scheduled. */
+  nextRetryAt: Date | null;
+  /** hard | fix_card — retry lane held until the card changes. Null = open. */
+  lastDeclineKind: string | null;
+  /** Highest failure-notice step already emailed; a re-decline on the same step is silent. */
+  dunningStep: number;
   canceledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -142,6 +169,8 @@ export type ChargeRow = {
   ok: boolean;
   reason: string | null;
   idempotencyKey: string | null;
+  /** What fired this attempt: cron | manual | trial_end. */
+  trigger: string | null;
   createdAt: Date;
 };
 
@@ -181,6 +210,10 @@ function toSub(r: Raw): SubscriptionRow {
     cloverSourceId: strOrNull(r.clover_source_id),
     nextChargeAt: dateOrNull(r.next_charge_at),
     lastChargeStatus: strOrNull(r.last_charge_status),
+    retryCount: num(r.retry_count),
+    nextRetryAt: dateOrNull(r.next_retry_at),
+    lastDeclineKind: strOrNull(r.last_decline_kind),
+    dunningStep: num(r.dunning_step),
     canceledAt: dateOrNull(r.canceled_at),
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
@@ -212,6 +245,7 @@ function toCharge(r: Raw): ChargeRow {
     ok: r.ok === true,
     reason: strOrNull(r.reason),
     idempotencyKey: strOrNull(r.idempotency_key),
+    trigger: strOrNull(r.trigger),
     createdAt: date(r.created_at),
   };
 }
@@ -339,9 +373,15 @@ export async function attachCard(
            clover_customer_id = ${vaulted.customerId ?? null},
            clover_source_id = ${vaulted.sourceId},
            next_charge_at = ${nextChargeAt ? nextChargeAt.toISOString() : null},
+           last_decline_kind = NULL,
+           retry_count = 0,
+           next_retry_at = NULL,
            updated_at = ${now.toISOString()}
      WHERE id = ${subId}
   `;
+  // last_decline_kind/retry_count/next_retry_at: a saved card reopens a held
+  // lane and restarts the ladder — the customer just fixed (or replaced) the
+  // thing that was declining.
 
   return { ok: true };
 }
@@ -357,9 +397,13 @@ export async function removeCard(subId: string): Promise<ActionResult> {
            card_exp = NULL,
            clover_customer_id = NULL,
            clover_source_id = NULL,
+           last_decline_kind = NULL,
+           retry_count = 0,
+           next_retry_at = NULL,
            updated_at = ${new Date().toISOString()}
      WHERE id = ${subId}
   `;
+  // No card, nothing to hold a lane against — the next saved card decides.
   return { ok: true };
 }
 
@@ -433,14 +477,33 @@ export function addonCatalogWith(addons: AddonRow[]) {
 
 type CycleResult = { charged: boolean; reason?: string };
 
+/** What fired an attempt. Lands on the ledger row so the statement can say so. */
+export type ChargeTrigger = "cron" | "manual" | "trial_end";
+
 /**
- * One billing cycle: build the statement, charge, write the ledger row, move
- * the subscription forward. A decline leaves nextChargeAt where it is so the
- * daily sweep retries; only a success advances it.
+ * One billing cycle: build the statement, claim a ledger row, charge, record
+ * the outcome, move the subscription forward. A decline leaves nextChargeAt
+ * where it is; the retry LADDER (not the calendar) decides when to try again.
+ *
+ * Guards, in order — every one of these was missing on 2026-08-24 when six
+ * live authorizations hit a card in one evening (on hbvets):
+ *   1. a held lane (hard/fix_card decline) refuses every trigger;
+ *   2. at most MAX_ATTEMPTS_PER_DAY attempts per day, all triggers combined;
+ *   3. a cooldown between attempts absorbs button-mashing;
+ *   4. the ledger row is claimed BEFORE the network call, so two racing
+ *      invocations can never both reach Clover.
  */
-async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<CycleResult> {
+async function runCycle(
+  sub: SubscriptionRow,
+  dueAt: Date,
+  now: Date,
+  trigger: ChargeTrigger,
+): Promise<CycleResult> {
   if (!dbConfigured()) return { charged: false, reason: "no database" };
   const sql = getSql();
+
+  const hold = laneHoldMessage(sub.lastDeclineKind);
+  if (hold) return { charged: false, reason: hold };
 
   // The month is paid in advance, so a due date that is already more than a
   // full cycle old — a card added weeks after the trial lapsed — starts its
@@ -450,18 +513,58 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
 
   const addons = await activeAddons(sub.id);
   const statement: Statement = buildStatement({ sub, addons, periodStart: anchor });
-  const key = idempotencyKeyFor(sub.id, now);
+  const baseKey = idempotencyKeyFor(sub.id, now);
 
-  // Belt and braces on top of Clover's own idempotency: if today's key already
-  // produced a successful charge, this sweep re-ran — do not charge again.
-  const priorOk = (await sql`
-    SELECT id FROM billing_charges
-     WHERE idempotency_key = ${key} AND ok = true
-     LIMIT 1
-  `) as Raw[];
-  if (priorOk[0]) {
-    console.log(`[billing] ${sub.id} already charged under ${key} — skipping.`);
+  // Today's attempts, newest first. A settled one means a re-run — never
+  // charge again. Failed ones must not block a retry, but each retry needs a
+  // FRESH key (-rN): Clover replays the cached response for a key it has seen
+  // (proven live 2026-08-24), and the ledger's unique index wants a new row.
+  const today = ((await sql`
+    SELECT * FROM billing_charges
+     WHERE idempotency_key LIKE ${`${baseKey}%`}
+     ORDER BY created_at DESC
+  `) as Raw[]).map(toCharge);
+  if (today.some((row) => row.ok)) {
+    console.log(`[billing] ${sub.id} already charged under ${baseKey} — skipping.`);
     return { charged: false, reason: "already charged today" };
+  }
+  if (today.length >= MAX_ATTEMPTS_PER_DAY) {
+    return {
+      charged: false,
+      reason:
+        `Attempt limit reached — the card was already tried ${today.length} times today. ` +
+        "It can be tried again tomorrow; updating the card is the faster fix.",
+    };
+  }
+  const latest = today[0];
+  if (latest && now.getTime() - latest.createdAt.getTime() < ATTEMPT_COOLDOWN_MS) {
+    return {
+      charged: false,
+      reason: "A payment attempt just ran. Give it a couple of minutes before trying again.",
+    };
+  }
+  const key = today.length === 0 ? baseKey : `${baseKey}-r${today.length}`;
+
+  // Claim the ledger row BEFORE touching the network. Two racing invocations
+  // compute the same key; the unique index (billing_charges_idem_key) lets
+  // exactly one of them through.
+  let claimId: number;
+  try {
+    const claimed = (await sql`
+      INSERT INTO billing_charges
+        (subscription_id, amount_cents, line_items, period_start, period_end,
+         ok, reason, idempotency_key, trigger)
+      VALUES
+        (${sub.id}, ${statement.totalCents},
+         ${JSON.stringify(statement.lines satisfies StatementLine[])}::jsonb,
+         ${statement.periodStart.toISOString()}, ${statement.periodEnd.toISOString()},
+         false, 'attempt in flight', ${key}, ${trigger})
+      RETURNING id
+    `) as Raw[];
+    if (!claimed[0]) throw new Error("claim insert returned no row");
+    claimId = num(claimed[0].id);
+  } catch {
+    return { charged: false, reason: "Another payment attempt is already running." };
   }
 
   const res = await chargeSubscription({
@@ -470,6 +573,10 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
     idempotencyKey: key,
     description: chargeDescription(sub.orgName, anchor),
   });
+
+  const kind = res.ok ? null : classifyDecline(res.reason);
+  const newCount = sub.retryCount + 1;
+  const step = kind ? dunningStepFor(newCount, kind) : 0;
 
   // ONE TRANSACTION, and therefore the WebSocket pool rather than the HTTP
   // client: a ledger row saying "paid" must never survive without the matching
@@ -482,21 +589,12 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
     await client.query("BEGIN");
 
     await client.query(
-      `INSERT INTO billing_charges
-         (subscription_id, clover_charge_id, amount_cents, line_items,
-          period_start, period_end, ok, reason, idempotency_key)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)`,
-      [
-        sub.id,
-        res.chargeId ?? null,
-        statement.totalCents,
-        JSON.stringify(statement.lines satisfies StatementLine[]),
-        statement.periodStart.toISOString(),
-        statement.periodEnd.toISOString(),
-        res.ok,
-        res.reason ?? null,
-        key,
-      ],
+      `UPDATE billing_charges
+          SET clover_charge_id = $2,
+              ok = $3,
+              reason = $4
+        WHERE id = $1`,
+      [claimId, res.chargeId ?? null, res.ok, res.reason ?? null],
     );
 
     if (res.ok) {
@@ -505,6 +603,10 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
             SET status = 'active',
                 last_charge_status = $2,
                 next_charge_at = $3,
+                retry_count = 0,
+                next_retry_at = NULL,
+                last_decline_kind = NULL,
+                dunning_step = 0,
                 updated_at = $4
           WHERE id = $1`,
         [
@@ -514,14 +616,30 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
           now.toISOString(),
         ],
       );
+      // A settle ends the delinquency: ladder + lane + dunning reset.
     } else {
+      const retryAt = kind === "soft" ? nextRetryAt(newCount, now) : null;
       await client.query(
         `UPDATE subscriptions
             SET status = 'past_due',
                 last_charge_status = $2,
-                updated_at = $3
+                retry_count = $3,
+                next_retry_at = $4,
+                last_decline_kind = $5,
+                dunning_step = $6,
+                updated_at = $7
           WHERE id = $1`,
-        [sub.id, `declined: ${res.reason ?? "unknown"}`, now.toISOString()],
+        [
+          sub.id,
+          `declined: ${res.reason ?? "unknown"}`,
+          newCount,
+          // Soft declines schedule the next rung; hard/fix_card hold the
+          // lane (nothing retries until the card is saved again).
+          retryAt ? retryAt.toISOString() : null,
+          kind === "soft" ? null : kind,
+          step > sub.dunningStep ? step : sub.dunningStep,
+          now.toISOString(),
+        ],
       );
     }
 
@@ -545,7 +663,16 @@ async function runCycle(sub: SubscriptionRow, dueAt: Date, now: Date): Promise<C
     await sendReceiptEmail(sub, statement, res.chargeId ?? null);
     return { charged: true };
   }
-  await sendPaymentFailedEmail(sub, statement, res.reason ?? "the card was declined");
+  // One failure notice per escalation step, not per attempt — six declines in
+  // an evening must not mean six emails.
+  if (kind && step > sub.dunningStep) {
+    await sendPaymentFailedEmail(sub, statement, res.reason ?? "the card was declined", kind);
+  }
+  if (kind === "soft" && newCount >= MAX_RETRIES) {
+    console.warn(
+      `[billing] ${sub.id}: retry ladder exhausted after ${newCount} attempts — needs a human.`,
+    );
+  }
   return { charged: false, reason: res.reason };
 }
 
@@ -606,7 +733,7 @@ export async function sweepBilling(): Promise<SweepSummary> {
           summary.prompted += 1;
           continue;
         }
-        const r = await runCycle(sub, now, now);
+        const r = await runCycle(sub, now, now, "trial_end");
         if (r.charged) summary.charged += 1;
         else summary.failed += 1;
         continue;
@@ -624,8 +751,32 @@ export async function sweepBilling(): Promise<SweepSummary> {
         summary.notes.push(`${sub.id}: payment due, no card on file`);
         continue;
       }
+      // A held lane never auto-retries — the customer has to fix the card.
+      if (sub.lastDeclineKind) {
+        summary.skipped += 1;
+        summary.notes.push(
+          `${sub.id}: retry lane held (${sub.lastDeclineKind} decline) — waiting on a card update`,
+        );
+        continue;
+      }
+      // Mid-delinquency, the LADDER decides when the next automated attempt
+      // runs — not the calendar. The old behaviour (retry every single day
+      // forever) meant a daily auth+reversal pair on the customer's bank.
+      if (sub.retryCount > 0) {
+        if (!sub.nextRetryAt) {
+          summary.skipped += 1;
+          summary.notes.push(
+            `${sub.id}: retry ladder exhausted after ${sub.retryCount} attempts — needs a human`,
+          );
+          continue;
+        }
+        if (sub.nextRetryAt.getTime() > now.getTime()) {
+          summary.skipped += 1;
+          continue;
+        }
+      }
 
-      const r = await runCycle(sub, anchor, now);
+      const r = await runCycle(sub, anchor, now, "cron");
       if (r.charged) summary.charged += 1;
       else summary.failed += 1;
     } catch (err) {
@@ -665,7 +816,9 @@ export async function retryChargeNow(subId: string): Promise<ActionResult> {
     };
   }
 
-  const r = await runCycle(sub, sub.nextChargeAt ?? now, now);
+  // The button skips the ladder's WAIT (a human may retry sooner) but never
+  // its holds: lane, daily cap and cooldown are all enforced inside runCycle.
+  const r = await runCycle(sub, sub.nextChargeAt ?? now, now, "manual");
   return r.charged
     ? { ok: true }
     : { ok: false, error: r.reason ?? "The payment didn't go through." };

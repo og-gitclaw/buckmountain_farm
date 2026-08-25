@@ -161,6 +161,8 @@ export type TemplatePayload = {
     total_amount: string;
     lines: { label: string; amount: string }[];
     reason: string;
+    /** Kind-aware "what happens next" copy — a held lane must not promise retries. */
+    what_next: string;
     billing_url: string;
     statement_descriptor: string;
   };
@@ -687,8 +689,10 @@ On your bank or card statement this appears as ${v.statement_descriptor}.${v.cha
         p(`We tried to charge ${escapeHtml(v.total_amount)} and the card on file didn't go through.`),
         billingLines(v.lines, v.total_amount),
         p(`The bank said: ${escapeHtml(v.reason)}`, "#555555"),
+        p(`<strong>Nothing was taken and the site is still up.</strong> ${escapeHtml(v.what_next)}`),
         p(
-          "<strong>Nothing was taken and the site is still up.</strong> We'll try again once a day. Updating the card on the billing page is the quickest fix.",
+          "If your bank app shows a pending charge from a declined attempt, that's a temporary hold the bank releases on its own — it was never collected.",
+          "#555555",
         ),
         divider(),
         p(
@@ -708,7 +712,9 @@ Total: ${v.total_amount}
 
 The bank said: ${v.reason}
 
-Nothing was taken and the site is still up. We'll try again once a day. Updating the card on the billing page is the quickest fix.
+Nothing was taken and the site is still up. ${v.what_next}
+
+If your bank app shows a pending charge from a declined attempt, that's a temporary hold the bank releases on its own — it was never collected.
 
 On your bank or card statement this appears as ${v.statement_descriptor}.`,
       cta: { label: "Update the card", url: v.billing_url },

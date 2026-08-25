@@ -279,7 +279,12 @@ export async function chargeSubscription(args: {
       body: JSON.stringify({
         amount: amountCents,
         currency: "usd",
-        source: sub.cloverSourceId,
+        // PROVEN LIVE 2026-08-24 (hbvets): /v1/charges resolves `source` as a
+        // CUSTOMER id for vaulted charges — passing the card id returns
+        // "Customer with id X1PH… not found." Charge the customer (its default
+        // = the vaulted card); the card id stays stored for display + a
+        // fallback for any account vaulted without a customer.
+        source: sub.cloverCustomerId ?? sub.cloverSourceId,
         capture: true,
         ecomind: "ecom",
         description,

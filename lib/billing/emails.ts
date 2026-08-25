@@ -112,14 +112,30 @@ export async function sendReceiptEmail(
   await log(template, sub.contactEmail, res.ok, res.ok ? undefined : res.reason);
 }
 
-/** The card was declined. Nothing was taken; we retry daily. */
+/**
+ * The card was declined. Sent at most once per escalation step (lifecycle
+ * guards it with dunning_step), and the copy is honest about what happens
+ * next for each decline kind — a held lane must not promise retries.
+ */
 export async function sendPaymentFailedEmail(
   sub: SubInfo,
   statement: Statement,
   reason: string,
+  kind: "hard" | "fix_card" | "soft" = "soft",
 ): Promise<void> {
   const template = "billing-failed";
   if (!(await guardRecipient(template, sub.contactEmail))) return;
+  const whatNext =
+    kind === "fix_card"
+      ? "The bank is rejecting a detail on the card — usually the billing ZIP code not " +
+        "matching what the bank has on file. We've paused automatic retries. Re-save the " +
+        "card on the billing page with the ZIP the bank has on record and billing resumes " +
+        "on its own."
+      : kind === "hard"
+        ? "The bank says this card can't be charged. We've paused automatic retries — " +
+          "adding a different card on the billing page fixes it."
+        : "We'll retry automatically in a few days. Updating the card on the billing page " +
+          "is the quickest fix if you'd rather not wait.";
   const res = await sendTransactional({
     template,
     to: sub.contactEmail,
@@ -128,6 +144,7 @@ export async function sendPaymentFailedEmail(
       total_amount: money(statement.totalCents),
       lines: lines(statement),
       reason,
+      what_next: whatNext,
       billing_url: billingLink(),
       statement_descriptor: STATEMENT_DESCRIPTOR,
     },
